@@ -1,0 +1,82 @@
+# Vendor slimming rules for coding-agent source analysis.
+# Consumed by scripts/prune_vendors.py and scripts/sync-vendors.sh
+#
+# sparse_mode:
+#   only   - checkout only listed paths (best for claude-code-sourcemap)
+#   exclude - checkout everything except listed paths
+#
+# prune_paths / prune_globs run after every sync to remove blobs that still
+# land in the working tree (vendor binaries, fixtures, media, etc.).
+
+global:
+  prune_globs:
+    - "**/vendor/ripgrep/**"
+    - "**/vendor/audio-capture/**"
+    - "**/*.node"
+    - "**/test/fixtures/**"
+    - "**/tests/fixtures/**"
+    - "**/*.snap"
+    - "**/memory-tests/**"
+    - "**/docs/media/**"
+    - "**/docs/assets/**"
+    - "**/asset/lander/**"
+    - "**/*.mp4"
+    - "**/*.tgz"
+    - "**/*.tar.gz"
+    - "**/*.zip"
+
+vendors:
+  claude-code-sourcemap:
+    description: "Keep restored TypeScript sources only."
+    sparse_mode: only
+    sparse_paths:
+      - restored-src
+    prune_paths:
+      - package
+      - extract-sources.js
+      - restored-src/node_modules
+    prune_globs: []
+
+  codex:
+    description: "Rust/TS implementation; drop test fixtures and snapshots."
+    sparse_mode: exclude
+    sparse_paths: []
+    prune_paths: []
+    prune_globs:
+      - "**/tests/fixtures/**"
+      - "**/*.snap"
+      - ".github/codex-cli-splash.png"
+
+  gemini-cli:
+    description: "Core packages source; drop ripgrep, memory tests, eval assets."
+    sparse_mode: exclude
+    sparse_paths:
+      - memory-tests
+      - docs/assets
+      - evals
+      - perf-tests
+      - integration-tests
+      - packages/core/vendor
+    prune_paths: []
+    prune_globs: []
+
+  kimi-code:
+    description: "Monorepo source; drop docs media and fixtures."
+    sparse_mode: exclude
+    sparse_paths:
+      - docs/media
+    prune_paths: []
+    prune_globs: []
+
+  opencode:
+    description: "Agent core packages; drop marketing media, icons, test blobs."
+    sparse_mode: exclude
+    sparse_paths:
+      - packages/console/app/src/asset
+      - packages/web/src/assets
+      - packages/desktop/icons
+      - packages/app/public/assets
+      - packages/opencode/test
+    prune_paths: []
+    prune_globs:
+      - "packages/ui/src/components/file-icons/sprite.svg"
