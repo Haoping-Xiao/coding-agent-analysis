@@ -1,0 +1,15 @@
+[submodule "vendors/codex"]
+	path = vendors/codex
+	url = https://github.com/openai/codex.git
+[submodule "vendors/kimi-code"]
+	path = vendors/kimi-code
+	url = https://github.com/MoonshotAI/kimi-code.git
+[submodule "vendors/gemini-cli"]
+	path = vendors/gemini-cli
+	url = https://github.com/google-gemini/gemini-cli.git
+[submodule "vendors/opencode"]
+	path = vendors/opencode
+	url = https://github.com/anomalyco/opencode
+[submodule "vendors/claude-code-sourcemap"]
+	path = vendors/claude-code-sourcemap
+	url = https://github.com/ChinaSiro/claude-code-sourcemap
