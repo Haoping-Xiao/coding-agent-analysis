@@ -16,7 +16,7 @@
 
 ```bash
 git clone --recurse-submodules --depth 1 <repo-url>
-cd coding-agent
+cd coding-agent-analysis
 ./scripts/sync-vendors.sh --no-remote   # 配置 sparse + 瘦身
 ```
 
