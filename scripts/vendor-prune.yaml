@@ -10,6 +10,8 @@
 
 global:
   prune_globs:
+    # Bundled deps from claude-code sourcemap restore; not needed for source analysis.
+    - "**/node_modules/**"
     - "**/vendor/ripgrep/**"
     - "**/vendor/audio-capture/**"
     - "**/*.node"
@@ -27,13 +29,14 @@ global:
 
 vendors:
   claude-code-sourcemap:
-    description: "Keep restored TypeScript sources only."
+    description: "Keep restored TypeScript sources only (restored-src/src)."
     sparse_mode: only
     sparse_paths:
       - restored-src
     prune_paths:
       - package
       - extract-sources.js
+      # npm 还原产物：数千个 bundled 依赖，与 src/ 分析无关，体积巨大。
       - restored-src/node_modules
     prune_globs: []
 
