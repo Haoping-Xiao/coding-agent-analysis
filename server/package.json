@@ -1,18 +1,16 @@
 {
   "name": "coding-agent-faq-server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "AI 问答后端：用 Cursor SDK 基于 vendors/ 代码仓回答，FAQ 存 Turso(libSQL)，代码仓可走 R2 虚拟文件系统。",
+  "description": "AI 问答后端：用 Cursor SDK（local 读 vendors/ 或 cloud sandbox 克隆仓库）回答，FAQ 存 Turso(libSQL)。",
   "main": "index.mjs",
   "scripts": {
     "start": "node index.mjs",
     "export-faq": "node export-faq.mjs",
-    "ingest-r2": "node ingest-r2.mjs",
     "selftest": "node selftest.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.726.0",
     "@cursor/sdk": "^1.0.18",
     "@libsql/client": "^0.15.0",
     "cors": "^2.8.5",

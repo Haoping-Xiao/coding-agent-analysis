@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { askQuestion, hasApiKey, fsMode } from "./agent.mjs";
+import { askQuestion, hasApiKey, runtimeMode } from "./agent.mjs";
 import { addFaq, listFaq, upvoteFaq, countFaq, isRemote } from "./db.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -89,5 +89,5 @@ app.listen(PORT, () => {
   console.log(`[server] serving site from ${SITE_DIR}`);
   console.log(`[server] Cursor SDK key: ${hasApiKey ? "configured" : "MISSING (演示模式)"}`);
   console.log(`[server] FAQ DB: ${isRemote ? "Turso (remote)" : "local file"}`);
-  console.log(`[server] code FS: ${fsMode}`);
+  console.log(`[server] runtime: ${runtimeMode}`);
 });
