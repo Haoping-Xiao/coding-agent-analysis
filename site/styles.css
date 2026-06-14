@@ -296,7 +296,7 @@ code { font-family: var(--mono); font-size: .9em; }
 
 /* ===== 聊天悬浮组件 ===== */
 .chat-fab {
-  position: fixed; right: 22px; bottom: 22px; z-index: 95;
+  position: fixed; right: 22px; bottom: 22px; z-index: 98;
   display: inline-flex; align-items: center; gap: 9px; padding: 13px 20px;
   border: 0; border-radius: 999px; cursor: pointer; font-family: inherit; font-weight: 700; font-size: .98rem;
   color: #06121f; background: linear-gradient(100deg, var(--accent), var(--accent-2));

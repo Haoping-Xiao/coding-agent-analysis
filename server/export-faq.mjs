@@ -9,7 +9,7 @@ import { listFaq } from "./db.mjs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT = process.env.FAQ_JSON_PATH || join(__dirname, "..", "site", "faq.json");
 
-const items = listFaq({ limit: 500 });
+const items = await listFaq({ limit: 500 });
 const payload = {
   generated_at: new Date().toISOString(),
   count: items.length,
@@ -18,3 +18,4 @@ const payload = {
 
 writeFileSync(OUT, JSON.stringify(payload, null, 2) + "\n", "utf-8");
 console.log(`[export-faq] wrote ${items.length} item(s) -> ${OUT}`);
+process.exit(0);

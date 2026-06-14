@@ -2,3 +2,5 @@ node_modules/
 faq.db
 faq.db-shm
 faq.db-wal
+.env
+.env.local

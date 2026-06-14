@@ -3,8 +3,8 @@ import express from "express";
 import cors from "cors";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { askQuestion, hasApiKey } from "./agent.mjs";
-import { addFaq, listFaq, upvoteFaq, countFaq } from "./db.mjs";
+import { askQuestion, hasApiKey, fsMode } from "./agent.mjs";
+import { addFaq, listFaq, upvoteFaq, countFaq, isRemote } from "./db.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SITE_DIR = join(__dirname, "..", "site");
@@ -15,8 +15,12 @@ app.use(cors());
 app.use(express.json({ limit: "256kb" }));
 
 // 健康检查 / 能力探测：前端用它判断后端是否在线、是否配了真实 key。
-app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, hasApiKey, faqCount: countFaq() });
+app.get("/api/health", async (_req, res) => {
+  try {
+    res.json({ ok: true, hasApiKey, faqCount: await countFaq() });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err.message || err) });
+  }
 });
 
 // 流式问答（SSE）。前端用 fetch + ReadableStream 读取。
@@ -47,10 +51,10 @@ app.post("/api/ask", async (req, res) => {
 });
 
 // 采纳：把问答写入 FAQ 数据库。
-app.post("/api/faq", (req, res) => {
+app.post("/api/faq", async (req, res) => {
   try {
     const { question, answer, model } = req.body || {};
-    const row = addFaq({ question, answer, model });
+    const row = await addFaq({ question, answer, model });
     res.json({ ok: true, faq: row });
   } catch (err) {
     res.status(400).json({ error: String(err.message || err) });
@@ -58,15 +62,23 @@ app.post("/api/faq", (req, res) => {
 });
 
 // 列出已发布 FAQ。
-app.get("/api/faq", (_req, res) => {
-  res.json({ items: listFaq({ limit: 200 }) });
+app.get("/api/faq", async (_req, res) => {
+  try {
+    res.json({ items: await listFaq({ limit: 200 }) });
+  } catch (err) {
+    res.status(500).json({ error: String(err.message || err) });
+  }
 });
 
 // 顶一下某条 FAQ（有用）。
-app.post("/api/faq/:id/upvote", (req, res) => {
-  const row = upvoteFaq(Number(req.params.id));
-  if (!row) return res.status(404).json({ error: "not found" });
-  res.json({ ok: true, faq: row });
+app.post("/api/faq/:id/upvote", async (req, res) => {
+  try {
+    const row = await upvoteFaq(Number(req.params.id));
+    if (!row) return res.status(404).json({ error: "not found" });
+    res.json({ ok: true, faq: row });
+  } catch (err) {
+    res.status(500).json({ error: String(err.message || err) });
+  }
 });
 
 // 静态站点
@@ -76,4 +88,6 @@ app.listen(PORT, () => {
   console.log(`[server] listening on http://localhost:${PORT}`);
   console.log(`[server] serving site from ${SITE_DIR}`);
   console.log(`[server] Cursor SDK key: ${hasApiKey ? "configured" : "MISSING (演示模式)"}`);
+  console.log(`[server] FAQ DB: ${isRemote ? "Turso (remote)" : "local file"}`);
+  console.log(`[server] code FS: ${fsMode}`);
 });
