@@ -1,0 +1,4 @@
+node_modules/
+faq.db
+faq.db-shm
+faq.db-wal

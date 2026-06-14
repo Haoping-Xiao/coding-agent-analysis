@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-06-14T00:00:00.000Z",
+  "count": 1,
+  "items": [
+    {
+      "id": 1,
+      "question": "coding agent 和普通聊天机器人有什么区别？",
+      "answer": "普通聊天机器人只会「说」，coding agent 会「干活」：它手里有一套工具（读文件、改代码、跑命令），并且在一个循环里反复「思考 → 调用工具 → 看结果」，直到任务完成。这一点在五个项目里都一样——比如 Claude Code 的主循环就是一个 while(true)。",
+      "model": "seed",
+      "upvotes": 0,
+      "created_at": "2026-06-14 00:00:00"
+    }
+  ]
+}

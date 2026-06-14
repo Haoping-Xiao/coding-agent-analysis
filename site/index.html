@@ -26,6 +26,7 @@
       <a href="#anatomy">五大部件</a>
       <a href="#vendors">各家巧思</a>
       <a href="#compare">横向对比</a>
+      <a href="#faq">常见问答</a>
       <a href="#build-your-own">动手做</a>
     </nav>
     <button class="nav__toggle" id="navToggle" aria-label="展开菜单" aria-expanded="false">
@@ -217,6 +218,21 @@
       <p class="fineprint reveal">表中结论均来自各项目源码（见上方各家「证据文件」）。结构相似不代表互为衍生——例如 Kimi Code 并非 Gemini CLI 的 fork，而是 Moonshot 自研、由旧的 kimi-cli 演进而来。</p>
     </section>
 
+    <!-- 常见问答 FAQ -->
+    <section id="faq" class="section">
+      <div class="section__head reveal">
+        <span class="kicker">问答库</span>
+        <h2>常见问答（FAQ）</h2>
+        <p class="lead">
+          下面的问答由 AI 基于 <code>vendors/</code> 真实源码生成、并经人工采纳后沉淀下来。
+          没找到答案？右下角随时<strong>提问</strong>，满意的话一键收进这里，帮到后来人。
+        </p>
+      </div>
+      <div class="faq-list reveal" id="faqList">
+        <p class="faq-empty">正在加载问答…</p>
+      </div>
+    </section>
+
     <!-- 动手做 -->
     <section id="build-your-own" class="section section--alt">
       <div class="section__head reveal">
@@ -296,7 +312,43 @@
     </div>
   </footer>
 
+  <!-- AI 问答悬浮组件 -->
+  <button class="chat-fab" id="chatFab" aria-label="向 AI 提问">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    <span>问 AI</span>
+  </button>
+
+  <div class="chat" id="chatPanel" hidden>
+    <div class="chat__head">
+      <div class="chat__title">
+        <span class="chat__dot" id="chatStatusDot"></span>
+        <div>
+          <strong>问问 AI</strong>
+          <small id="chatStatusText">连接中…</small>
+        </div>
+      </div>
+      <button class="chat__close" id="chatClose" aria-label="关闭">✕</button>
+    </div>
+    <div class="chat__body" id="chatBody">
+      <div class="chat__hint">
+        <p>我会基于 5 个真实开源 coding agent 的源码，用大白话回答你的问题。试试：</p>
+        <div class="chat__suggest" id="chatSuggest">
+          <button>什么是 agent loop？</button>
+          <button>各家怎么管上下文不爆？</button>
+          <button>权限审批是怎么做的？</button>
+        </div>
+      </div>
+    </div>
+    <form class="chat__input" id="chatForm">
+      <textarea id="chatText" rows="1" placeholder="输入你的问题，Enter 发送…" autocomplete="off"></textarea>
+      <button type="submit" id="chatSend" aria-label="发送">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </form>
+  </div>
+
   <script src="data.js"></script>
   <script src="app.js"></script>
+  <script src="chat.js"></script>
 </body>
 </html>
