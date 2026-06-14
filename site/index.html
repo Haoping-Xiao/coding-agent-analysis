@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coding Agent 是怎么造出来的 · 给 AI Agent 开发者的入门地图</title>
+  <meta name="description" content="用真实开源代码（Codex / Claude Code / Gemini CLI / OpenCode / Kimi Code）讲清楚 coding agent 的实现原理，以及各家的巧妙设计。面向 AI agent 开发者小白。" />
+  <link rel="preconnect" href="data:," />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- 顶部进度条 -->
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+  <!-- 导航 -->
+  <header class="nav" id="nav">
+    <a href="#top" class="nav__brand">
+      <span class="nav__logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+      </span>
+      <span>Coding&nbsp;Agent <em>拆解</em></span>
+    </a>
+    <nav class="nav__links" aria-label="主导航">
+      <a href="#what">是什么</a>
+      <a href="#loop">核心循环</a>
+      <a href="#anatomy">五大部件</a>
+      <a href="#vendors">各家巧思</a>
+      <a href="#compare">横向对比</a>
+      <a href="#build-your-own">动手做</a>
+    </nav>
+    <button class="nav__toggle" id="navToggle" aria-label="展开菜单" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <main id="top">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero__grid" aria-hidden="true"></div>
+      <div class="hero__glow" aria-hidden="true"></div>
+      <div class="hero__inner">
+        <p class="badge">基于真实开源代码 · 面向小白</p>
+        <h1 class="hero__title">
+          一个 <span class="grad">Coding Agent</span><br />
+          到底是怎么造出来的？
+        </h1>
+        <p class="hero__sub">
+          它不是魔法。剥开外壳，里面是一个朴素的循环：<strong>大模型动脑 → 调用工具动手 → 看结果 → 再来一轮</strong>。
+          本页用 5 个知名开源项目的真实代码，带你看清这套机制，以及每家偷偷做的「巧妙设计」。
+        </p>
+        <div class="hero__cta">
+          <a href="#loop" class="btn btn--primary">看核心循环 ↓</a>
+          <a href="#vendors" class="btn btn--ghost">直接看各家巧思</a>
+        </div>
+        <div class="hero__chips" id="heroChips">
+          <span class="chip" data-v="codex">Codex</span>
+          <span class="chip" data-v="claude">Claude Code</span>
+          <span class="chip" data-v="gemini">Gemini CLI</span>
+          <span class="chip" data-v="opencode">OpenCode</span>
+          <span class="chip" data-v="kimi">Kimi Code</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 是什么 -->
+    <section id="what" class="section">
+      <div class="section__head reveal">
+        <span class="kicker">第 0 课</span>
+        <h2>先说人话：coding agent 是什么</h2>
+        <p class="lead">
+          普通聊天机器人只会「说」。Coding agent 会「干活」——它能读你的代码、改文件、跑命令、看报错，然后自己决定下一步。
+          差别就在于它手里有一套<strong>工具</strong>，以及一个让它反复行动的<strong>循环</strong>。
+        </p>
+      </div>
+      <div class="cards-3">
+        <article class="card reveal">
+          <div class="card__icon">🧠</div>
+          <h3>大脑：大模型</h3>
+          <p>负责思考和决策。它读到当前对话和任务，输出「我要调用某个工具，参数是这些」。它本身不会真的碰你的电脑。</p>
+        </article>
+        <article class="card reveal" style="--d:.08s">
+          <div class="card__icon">🛠️</div>
+          <h3>双手：工具</h3>
+          <p>读文件、写文件、跑 shell、搜索代码……这些「动手」的能力由程序提供，模型只是开口要求，由 agent 框架真正执行。</p>
+        </article>
+        <article class="card reveal" style="--d:.16s">
+          <div class="card__icon">🔁</div>
+          <h3>心跳：循环</h3>
+          <p>执行完工具，把结果再喂回模型，让它接着想下一步。如此往复，直到任务完成。这就是 agent 区别于聊天机器人的关键。</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- 核心循环 -->
+    <section id="loop" class="section section--alt">
+      <div class="section__head reveal">
+        <span class="kicker">第 1 课 · 共性</span>
+        <h2>所有 coding agent 共享的「Agent Loop」</h2>
+        <p class="lead">
+          无论 Codex 用 Rust、Claude Code 用 TypeScript，骨架几乎一模一样。下面这张图是它们共同的心跳。
+          点亮每一步看它在干什么。
+        </p>
+      </div>
+
+      <div class="loop">
+        <ol class="loop__steps" id="loopSteps">
+          <li class="loop__step is-active" data-step="0">
+            <span class="loop__num">1</span>
+            <div><h4>接收输入</h4><p>用户的需求、或上一轮工具的结果</p></div>
+          </li>
+          <li class="loop__step" data-step="1">
+            <span class="loop__num">2</span>
+            <div><h4>模型思考</h4><p>组装上下文，请求大模型（流式返回）</p></div>
+          </li>
+          <li class="loop__step" data-step="2">
+            <span class="loop__num">3</span>
+            <div><h4>要求调用工具</h4><p>模型输出 tool_call：读文件 / 跑命令…</p></div>
+          </li>
+          <li class="loop__step" data-step="3">
+            <span class="loop__num">4</span>
+            <div><h4>审批 + 执行</h4><p>危险操作先问你，再在沙箱里执行</p></div>
+          </li>
+          <li class="loop__step" data-step="4">
+            <span class="loop__num">5</span>
+            <div><h4>观察结果 → 回到第 1 步</h4><p>把结果喂回模型，继续，直到没有新的工具调用</p></div>
+          </li>
+        </ol>
+        <div class="loop__panel">
+          <div class="loop__diagram" aria-hidden="true">
+            <div class="orbit">
+              <div class="orbit__core">LLM</div>
+              <span class="orbit__dot" style="--i:0"></span>
+              <span class="orbit__dot" style="--i:1"></span>
+              <span class="orbit__dot" style="--i:2"></span>
+              <span class="orbit__dot" style="--i:3"></span>
+              <span class="orbit__dot" style="--i:4"></span>
+            </div>
+          </div>
+          <div class="loop__detail" id="loopDetail">
+            <!-- JS 注入 -->
+          </div>
+        </div>
+      </div>
+
+      <div class="callout reveal">
+        <strong>真实印证：</strong>
+        Claude Code 的主循环就是一个 <code>while (true)</code> 的 <code>queryLoop()</code>（<code>restored-src/src/query.ts</code>）；
+        Gemini CLI 把一轮模型往返封装成 <code>Turn.run</code>（<code>packages/core/src/core/turn.ts</code>）；
+        Kimi Code 则是 <code>runTurn → executeLoopStep</code>，每个 step 都是「调模型，若 stop 原因是 <code>tool_use</code> 就执行工具」（<code>packages/agent-core/src/loop/</code>）。
+      </div>
+    </section>
+
+    <!-- 五大部件 -->
+    <section id="anatomy" class="section">
+      <div class="section__head reveal">
+        <span class="kicker">第 2 课 · 共性</span>
+        <h2>拆开看：每个 agent 都有的五大部件</h2>
+        <p class="lead">循环只是骨架。要真能干活、还不闯祸，下面这 5 个部件缺一不可。</p>
+      </div>
+
+      <div class="anatomy">
+        <nav class="anatomy__tabs" id="anatomyTabs" aria-label="部件切换">
+          <button class="is-active" data-a="tools"><span>🧰</span>工具系统</button>
+          <button data-a="perm"><span>🔐</span>权限审批</button>
+          <button data-a="ctx"><span>🗜️</span>上下文管理</button>
+          <button data-a="proto"><span>🔌</span>会话与协议</button>
+          <button data-a="sub"><span>🐝</span>子 Agent</button>
+        </nav>
+        <div class="anatomy__body" id="anatomyBody"><!-- JS 注入 --></div>
+      </div>
+    </section>
+
+    <!-- 各家巧思 -->
+    <section id="vendors" class="section section--alt">
+      <div class="section__head reveal">
+        <span class="kicker">第 3 课 · 差异</span>
+        <h2>同一套骨架，各家的「巧妙设计」</h2>
+        <p class="lead">
+          骨架相同，但每家在<strong>解耦、性能、安全、多端</strong>上各有绝活。选一家看它的招牌设计。
+        </p>
+      </div>
+
+      <div class="vendor">
+        <nav class="vendor__tabs" id="vendorTabs" aria-label="厂商切换">
+          <button class="is-active" data-v="codex">Codex<small>OpenAI · Rust</small></button>
+          <button data-v="claude">Claude Code<small>Anthropic · TS</small></button>
+          <button data-v="gemini">Gemini CLI<small>Google · TS</small></button>
+          <button data-v="opencode">OpenCode<small>开源 · TS/Bun</small></button>
+          <button data-v="kimi">Kimi Code<small>Moonshot · TS</small></button>
+        </nav>
+        <div class="vendor__body" id="vendorBody"><!-- JS 注入 --></div>
+      </div>
+    </section>
+
+    <!-- 横向对比 -->
+    <section id="compare" class="section">
+      <div class="section__head reveal">
+        <span class="kicker">第 4 课</span>
+        <h2>一张表看懂五家差异</h2>
+        <p class="lead">同样的问题，不同的答案。横向扫一眼，体会设计取舍。</p>
+      </div>
+      <div class="table-wrap reveal">
+        <table class="ctable" id="compareTable">
+          <thead>
+            <tr>
+              <th>维度</th>
+              <th><span class="dot dot--codex"></span>Codex</th>
+              <th><span class="dot dot--claude"></span>Claude Code</th>
+              <th><span class="dot dot--gemini"></span>Gemini CLI</th>
+              <th><span class="dot dot--opencode"></span>OpenCode</th>
+              <th><span class="dot dot--kimi"></span>Kimi Code</th>
+            </tr>
+          </thead>
+          <tbody><!-- JS 注入 --></tbody>
+        </table>
+      </div>
+      <p class="fineprint reveal">表中结论均来自各项目源码（见上方各家「证据文件」）。结构相似不代表互为衍生——例如 Kimi Code 并非 Gemini CLI 的 fork，而是 Moonshot 自研、由旧的 kimi-cli 演进而来。</p>
+    </section>
+
+    <!-- 动手做 -->
+    <section id="build-your-own" class="section section--alt">
+      <div class="section__head reveal">
+        <span class="kicker">第 5 课</span>
+        <h2>30 行，写一个你自己的 mini agent</h2>
+        <p class="lead">把前面讲的循环翻译成伪代码，你会发现真没那么神秘。</p>
+      </div>
+      <div class="code-demo reveal">
+        <div class="code-demo__bar">
+          <span class="code-demo__dots"><i></i><i></i><i></i></span>
+          <span class="code-demo__file">mini_agent.ts</span>
+        </div>
+<pre class="code"><code><span class="c">// 一个最小可用的 agent loop（去掉了流式/错误处理）</span>
+<span class="k">async function</span> <span class="fn">runAgent</span>(task) {
+  <span class="k">let</span> messages = [{ role: <span class="s">"user"</span>, content: task }];
+
+  <span class="k">while</span> (<span class="b">true</span>) {
+    <span class="c">// 1) 模型动脑：给它对话历史 + 可用工具清单</span>
+    <span class="k">const</span> reply = <span class="k">await</span> llm.chat({ messages, tools: <span class="fn">toolSchemas</span>() });
+    messages.push(reply);
+
+    <span class="c">// 2) 没有工具调用 → 任务结束</span>
+    <span class="k">if</span> (!reply.toolCalls?.length) <span class="k">return</span> reply.text;
+
+    <span class="c">// 3) 逐个执行工具（危险操作先审批）</span>
+    <span class="k">for</span> (<span class="k">const</span> call <span class="k">of</span> reply.toolCalls) {
+      <span class="k">if</span> (<span class="fn">needsApproval</span>(call) &amp;&amp; !(<span class="k">await</span> <span class="fn">askUser</span>(call))) {
+        messages.push(<span class="fn">toolResult</span>(call, <span class="s">"用户拒绝了该操作"</span>));
+        <span class="k">continue</span>;
+      }
+      <span class="k">const</span> output = <span class="k">await</span> tools[call.name](call.args); <span class="c">// 读文件/跑命令…</span>
+      <span class="c">// 4) 观察：把结果喂回去，下一轮 while 继续</span>
+      messages.push(<span class="fn">toolResult</span>(call, output));
+    }
+  }
+}</code></pre>
+      </div>
+      <div class="cards-3">
+        <article class="card reveal">
+          <h3>想更像真货？加这些</h3>
+          <ul class="ticks">
+            <li>流式输出 + 边流边执行只读工具（Claude Code 的并行思路）</li>
+            <li>上下文满了自动压缩（compaction）</li>
+            <li>沙箱执行 + 审批缓存（Codex 的思路）</li>
+          </ul>
+        </article>
+        <article class="card reveal" style="--d:.08s">
+          <h3>想做多端？</h3>
+          <ul class="ticks">
+            <li>把核心做成 server，CLI/网页/IDE 当客户端（OpenCode）</li>
+            <li>用类型化协议（JSON-RPC / OpenAPI）暴露能力（Codex / OpenCode）</li>
+          </ul>
+        </article>
+        <article class="card reveal" style="--d:.16s">
+          <h3>想可调试 / 可恢复？</h3>
+          <ul class="ticks">
+            <li>把每个事件写进 wire log，崩溃后 replay 恢复（Kimi Code）</li>
+            <li>改文件前打 git checkpoint，支持一键回滚（Gemini CLI）</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__inner">
+      <p class="footer__big">骨架人人都有，<span class="grad">巧思各显神通</span>。</p>
+      <p class="footer__sub">本页所有结论基于以下开源项目的真实源码（收录于本仓 <code>vendors/</code>）：</p>
+      <div class="footer__links">
+        <a href="https://github.com/openai/codex" target="_blank" rel="noopener">openai/codex</a>
+        <a href="https://github.com/anthropics/claude-code" target="_blank" rel="noopener">Claude Code</a>
+        <a href="https://github.com/google-gemini/gemini-cli" target="_blank" rel="noopener">google-gemini/gemini-cli</a>
+        <a href="https://github.com/anomalyco/opencode" target="_blank" rel="noopener">opencode</a>
+        <a href="https://github.com/MoonshotAI/kimi-code" target="_blank" rel="noopener">MoonshotAI/kimi-code</a>
+      </div>
+      <p class="footer__note">教学用途 · 各项目版权归原作者所有</p>
+    </div>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
