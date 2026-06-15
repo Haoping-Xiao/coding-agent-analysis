@@ -32,6 +32,13 @@ export default async function handler(req, res) {
       const row = await db().execute({ sql: "SELECT id, faq_id, author, body, created_at FROM faq_comments WHERE id = ?", args: [Number(ins.lastInsertRowid)] });
       return res.status(200).json({ ok: true, comment: row.rows[0] });
     }
+    if (req.method === "DELETE") {
+      if (!isAdmin(req)) return res.status(401).json({ error: "仅管理员可删除评论" });
+      const id = Number(req.query.id);
+      if (!id) return res.status(400).json({ error: "需要 id" });
+      await db().execute({ sql: "DELETE FROM faq_comments WHERE id = ?", args: [id] });
+      return res.status(200).json({ ok: true });
+    }
     res.status(405).json({ error: "method not allowed" });
   } catch (e) {
     res.status(500).json({ error: String(e && e.message || e) });

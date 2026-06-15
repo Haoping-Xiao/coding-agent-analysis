@@ -278,7 +278,8 @@
     return name;
   }
   function cmtRow(c) {
-    return '<div class="cmt"><span class="cmt-author">' + esc(c.author || "匿名") + '</span><span class="cmt-time">' + esc((c.created_at || "").slice(0, 16)) + '</span><div class="cmt-body">' + esc(c.body) + "</div></div>";
+    var del = isAdmin() ? '<button class="cmt-del" data-id="' + c.id + '" title="删除评论">✕</button>' : "";
+    return '<div class="cmt" data-id="' + c.id + '"><span class="cmt-author">' + esc(c.author || "匿名") + '</span><span class="cmt-time">' + esc((c.created_at || "").slice(0, 16)) + "</span>" + del + '<div class="cmt-body">' + esc(c.body) + "</div></div>";
   }
   function loadComments(faqId, listEl) {
     fetch(API + "/api/comments?faqId=" + encodeURIComponent(faqId))
@@ -297,6 +298,22 @@
       function maybeLoad() { if (d.open && !d.dataset.cl) { d.dataset.cl = "1"; loadComments(id, listEl); } }
       d.addEventListener("toggle", maybeLoad);
       maybeLoad();
+      // 管理员删除评论（事件委托）
+      listEl.addEventListener("click", function (e) {
+        var btn = e.target && e.target.closest ? e.target.closest(".cmt-del") : null;
+        if (!btn || !isAdmin()) return;
+        btn.disabled = true;
+        fetch(API + "/api/comments?id=" + encodeURIComponent(btn.getAttribute("data-id")), { method: "DELETE", headers: authHeaders() })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            if (j && j.ok) {
+              var row = btn.closest(".cmt"); if (row) row.remove();
+              var cc = d.querySelector(".faq-cc"); if (cc) cc.textContent = "💬 " + listEl.querySelectorAll(".cmt").length;
+              if (!listEl.querySelector(".cmt")) listEl.innerHTML = '<p class="cmt-empty">还没有评论，来留第一条 👇</p>';
+            } else { btn.disabled = false; }
+          })
+          .catch(function () { btn.disabled = false; });
+      });
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         var inEl = form.querySelector(".cmt-input"), btn = form.querySelector(".cmt-send");

@@ -259,7 +259,10 @@ code { font-family: var(--mono); font-size: .9em; }
 .cmt-head { font-size: .82rem; color: var(--txt-mute); margin: 6px 0 10px; }
 .cmt-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
 .cmt-empty { font-size: .85rem; color: var(--txt-mute); margin: 0; }
-.cmt { border-left: 2px solid var(--border-strong); padding: 2px 0 2px 12px; }
+.cmt { position: relative; border-left: 2px solid var(--border-strong); padding: 2px 24px 2px 12px; }
+.cmt-del { position: absolute; right: 0; top: 0; background: none; border: 0; color: var(--txt-mute); font-size: .9rem; line-height: 1; cursor: pointer; padding: 2px 5px; border-radius: 6px; transition: .15s; }
+.cmt-del:hover { color: var(--kimi); background: rgba(255,122,144,.12); }
+.cmt-del:disabled { opacity: .5; cursor: default; }
 .cmt-author { font-weight: 600; font-size: .86rem; color: var(--txt); }
 .cmt-time { font-size: .75rem; color: var(--txt-mute); margin-left: 8px; }
 .cmt-body { font-size: .9rem; color: var(--txt-dim); white-space: pre-wrap; margin-top: 3px; }
