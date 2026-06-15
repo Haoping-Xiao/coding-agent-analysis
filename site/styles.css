@@ -347,9 +347,15 @@ code { font-family: var(--mono); font-size: .9em; }
 .msg__progress { font-size: .82rem; color: var(--txt-mute); margin-top: 8px; }
 .run__head { display: flex; align-items: center; gap: 9px; }
 .run__elapsed { font-size: .82rem; color: var(--txt-mute); }
-.run__feed { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; max-height: 168px; overflow-y: auto; }
-.run__step { font-size: .82rem; color: var(--txt-dim); padding: 5px 9px; border-radius: 8px; background: var(--bg-soft); border: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: stepIn .25s ease; }
-.run__step.is-live { color: var(--txt); border-color: rgba(110,168,255,.4); background: rgba(110,168,255,.08); }
+.run__feed { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.run__step { font-size: .86rem; display: flex; align-items: center; gap: 9px; transition: color .3s; animation: stepIn .25s ease; }
+.run__step .run__ico { flex: none; width: 18px; height: 18px; display: grid; place-items: center; font-size: .8rem; border-radius: 50%; }
+.run__step.is-done { color: var(--txt-dim); }
+.run__step.is-done .run__ico { color: var(--accent-3); }
+.run__step.is-live { color: var(--txt); font-weight: 600; }
+.run__step.is-todo { color: var(--txt-mute); opacity: .65; }
+.run__spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid rgba(110,168,255,.3); border-top-color: var(--accent); animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes stepIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .msg__typing { display: inline-flex; gap: 4px; padding: 2px 0; }
 .msg__typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--txt-mute); animation: typing 1.2s infinite; }

@@ -134,40 +134,47 @@
   }
 
   // Vercel cloud：轮询 /api/run 直到完成，并实时展示 agent 正在做什么（思考 / 工具调用）。
+  // cloud run 大部分时间在「开沙箱 + 克隆仓库」，这阶段没有可展示的工具步骤，
+  // 且 conversation() 会阻塞到运行结束。所以用「分阶段清单」持续展示进度（每秒推进），不会卡住。
+  var PHASES = [
+    { t: "准备云端沙箱", until: 12 },
+    { t: "克隆 5 个源码仓库（首次较慢）", until: 42 },
+    { t: "阅读源码、检索关键文件", until: 80 },
+    { t: "组织通俗易懂的答案", until: 1e9 },
+  ];
   function pollRun(aiEl, question, agentId, runId) {
     var t0 = Date.now();
-    var lastSteps = [];
-    function iconFor(k) { return k === "tool" ? "🔧" : "💭"; }
+    var done = false;
     function render() {
       var sec = Math.round((Date.now() - t0) / 1000);
-      var head = '<div class="run__head">' + TYPING + '<span class="run__elapsed">正在云端阅读源码并思考…（' + sec + 's）</span></div>';
-      var feed = "";
-      if (lastSteps.length) {
-        feed = '<ul class="run__feed">' + lastSteps.map(function (s, i) {
-          var live = i === lastSteps.length - 1 ? " is-live" : "";
-          return '<li class="run__step' + live + '">' + iconFor(s.k) + " " + esc(s.t) + "</li>";
-        }).join("") + "</ul>";
-      }
-      aiEl.innerHTML = head + feed;
+      var cur = PHASES.length - 1;
+      for (var i = 0; i < PHASES.length; i++) { if (sec < PHASES[i].until) { cur = i; break; } }
+      var rows = PHASES.map(function (p, i) {
+        var cls = i < cur ? "is-done" : (i === cur ? "is-live" : "is-todo");
+        var ico = i < cur ? "✓" : (i === cur ? '<span class="run__spin"></span>' : "○");
+        return '<li class="run__step ' + cls + '"><span class="run__ico">' + ico + "</span>" + esc(p.t) + "</li>";
+      }).join("");
+      aiEl.innerHTML =
+        '<div class="run__head"><span class="run__elapsed">正在云端基于源码作答…（' + sec + "s）</span></div>" +
+        '<ul class="run__feed">' + rows + "</ul>";
       body.scrollTop = body.scrollHeight;
     }
     render();
-    var timer = setInterval(render, 1000);
+    var timer = setInterval(function () { if (!done) render(); }, 1000);
     var elapsed = 0;
     function poll() {
       fetch(API + "/api/run?agentId=" + encodeURIComponent(agentId) + "&runId=" + encodeURIComponent(runId))
         .then(function (r) { return r.json(); })
         .then(function (d) {
-          if (d.status === "finished") { clearInterval(timer); state.busy = false; renderFinal(aiEl, question, d.answer || "", d.model || ""); return; }
-          if (d.status === "error" || d.status === "cancelled") { clearInterval(timer); state.busy = false; aiEl.innerHTML = '<span class="msg__warn">运行' + (d.status === "error" ? "出错" : "被取消") + "了，请重试。</span>"; return; }
-          if (d.steps && d.steps.length) { lastSteps = d.steps; render(); }
+          if (d.status === "finished") { done = true; clearInterval(timer); state.busy = false; renderFinal(aiEl, question, d.answer || "", d.model || ""); return; }
+          if (d.status === "error" || d.status === "cancelled") { done = true; clearInterval(timer); state.busy = false; aiEl.innerHTML = '<span class="msg__warn">运行' + (d.status === "error" ? "出错" : "被取消") + "了，请重试。</span>"; return; }
           elapsed += 1;
-          if (elapsed > 200) { clearInterval(timer); state.busy = false; aiEl.innerHTML = '<span class="msg__warn">等待超时，请重试。</span>'; return; }
-          setTimeout(poll, 1800);
+          if (elapsed > 200) { done = true; clearInterval(timer); state.busy = false; aiEl.innerHTML = '<span class="msg__warn">等待超时，请重试。</span>'; return; }
+          setTimeout(poll, 2500);
         })
-        .catch(function () { elapsed += 1; if (elapsed > 200) { clearInterval(timer); state.busy = false; } else setTimeout(poll, 2000); });
+        .catch(function () { elapsed += 1; if (elapsed > 200) { done = true; clearInterval(timer); state.busy = false; } else setTimeout(poll, 3000); });
     }
-    setTimeout(poll, 1500);
+    setTimeout(poll, 2500);
   }
 
   /* ---------- 表单 / 建议 ---------- */
