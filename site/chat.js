@@ -5,6 +5,41 @@
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   function esc(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
+  // 轻量 Markdown 渲染（先 esc 防 XSS，再解析常见语法）。无外部依赖。
+  function mdInline(s) {
+    return s
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>")
+      .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+  function mdToHtml(src) {
+    var text = esc(src == null ? "" : src);
+    var blocks = [];
+    text = text.replace(/```[\w-]*\n?([\s\S]*?)```/g, function (_, code) {
+      blocks.push('<pre class="md-pre"><code>' + code.replace(/\n$/, "") + "</code></pre>");
+      return "\u0000B" + (blocks.length - 1) + "\u0000";
+    });
+    var lines = text.split("\n"), out = [], i = 0;
+    var isBreak = function (l) { return /^(#{1,6}\s|\s*[-*+]\s|\s*\d+\.\s|\s*>\s|\u0000B)/.test(l) || /^\s*([-*_])\1{2,}\s*$/.test(l) || /^\s*$/.test(l); };
+    while (i < lines.length) {
+      var line = lines[i];
+      var ph = line.match(/^\u0000B(\d+)\u0000$/);
+      if (ph) { out.push(blocks[+ph[1]]); i++; continue; }
+      if (/^\s*$/.test(line)) { i++; continue; }
+      var h = line.match(/^(#{1,6})\s+(.*)$/);
+      if (h) { var lvl = Math.min(h[1].length + 3, 6); out.push("<h" + lvl + ' class="md-h">' + mdInline(h[2]) + "</h" + lvl + ">"); i++; continue; }
+      if (/^\s*([-*+])\s+/.test(line)) { var ul = []; while (i < lines.length && /^\s*([-*+])\s+/.test(lines[i])) { ul.push("<li>" + mdInline(lines[i].replace(/^\s*([-*+])\s+/, "")) + "</li>"); i++; } out.push('<ul class="md-ul">' + ul.join("") + "</ul>"); continue; }
+      if (/^\s*\d+\.\s+/.test(line)) { var ol = []; while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) { ol.push("<li>" + mdInline(lines[i].replace(/^\s*\d+\.\s+/, "")) + "</li>"); i++; } out.push('<ol class="md-ol">' + ol.join("") + "</ol>"); continue; }
+      if (/^\s*>\s?/.test(line)) { var bq = []; while (i < lines.length && /^\s*>\s?/.test(lines[i])) { bq.push(mdInline(lines[i].replace(/^\s*>\s?/, ""))); i++; } out.push('<blockquote class="md-bq">' + bq.join("<br>") + "</blockquote>"); continue; }
+      if (/^\s*([-*_])\1{2,}\s*$/.test(line)) { out.push('<hr class="md-hr">'); i++; continue; }
+      var para = [line]; i++;
+      while (i < lines.length && !isBreak(lines[i])) { para.push(lines[i]); i++; }
+      out.push("<p>" + para.map(mdInline).join("<br>") + "</p>");
+    }
+    return out.join("");
+  }
+
   var state = { online: false, hasApiKey: false, busy: false };
   var token = null;
   try { token = localStorage.getItem("admin_token") || null; } catch (e) {}
@@ -103,7 +138,7 @@
       det.innerHTML = '<summary>运行过程 · ' + proc.length + ' 步</summary><ul class="run__feed">' + proc.map(function (it) { return renderItem(it, true); }).join("") + "</ul>";
       el.appendChild(det);
     }
-    var p = document.createElement("div"); p.className = "msg__text"; p.textContent = answer; el.appendChild(p);
+    var p = document.createElement("div"); p.className = "msg__text md"; p.innerHTML = mdToHtml(answer); el.appendChild(p);
     if (save && isAdmin()) {
       fetch(API + "/api/history", { method: "POST", headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()), body: JSON.stringify({ question: question, answer: answer, model: model, steps: proc || [] }) }).catch(function () {});
     }
@@ -212,7 +247,7 @@
   function renderFaq(items) {
     if (!items || !items.length) { faqList.innerHTML = '<p class="faq-empty">还没有问答。管理员问一个、采纳后就会出现在这里。</p>'; return; }
     faqList.innerHTML = items.map(function (it, i) {
-      return '<details class="faq-item"' + (i === 0 ? " open" : "") + "><summary>" + esc(it.question) + (it.upvotes ? '<span class="faq-up">👍 ' + it.upvotes + "</span>" : "") + '</summary><div class="faq-ans">' + esc(it.answer) + "</div>" + (it.model ? '<div class="faq-meta">来源模型：' + esc(it.model) + "</div>" : "") + "</details>";
+      return '<details class="faq-item"' + (i === 0 ? " open" : "") + "><summary>" + esc(it.question) + (it.upvotes ? '<span class="faq-up">👍 ' + it.upvotes + "</span>" : "") + '</summary><div class="faq-ans md">' + mdToHtml(it.answer) + "</div>" + (it.model ? '<div class="faq-meta">来源模型：' + esc(it.model) + "</div>" : "") + "</details>";
     }).join("");
   }
   function loadFaq() {
