@@ -177,13 +177,31 @@
         }
       });
     }
+    // 克隆阶段（拿不到工具事件）时的兜底：按耗时推进的阶段清单，保证一直在动。
+    var PHASES = [
+      { t: "准备云端沙箱", until: 12 },
+      { t: "克隆 5 个源码仓库（首次较慢）", until: 50 },
+      { t: "在源码里查阅、检索", until: 95 },
+      { t: "组织通俗易懂的答案", until: 1e9 },
+    ];
+    function fallbackRows(sec) {
+      var cur = PHASES.length - 1;
+      for (var i = 0; i < PHASES.length; i++) { if (sec < PHASES[i].until) { cur = i; break; } }
+      return PHASES.map(function (p, i) {
+        var cls = i < cur ? "is-done" : (i === cur ? "is-live" : "");
+        var ico = i < cur ? "✓" : (i === cur ? '<span class="run__spin"></span>' : "○");
+        return '<li class="run__step ' + cls + '"><span class="run__ico">' + ico + '</span><span class="run__txt">' + esc(p.t) + "</span></li>";
+      }).join("");
+    }
     function render() {
       var sec = Math.round((Date.now() - t0) / 1000);
-      var shown = items.slice(-9);
-      var rows = shown.map(function (it) { return renderItem(it, false); }).join("");
+      // 有真实事件就展示真实事件；否则（如克隆阶段）展示推进式阶段清单。
+      var rows = items.length
+        ? items.slice(-9).map(function (it) { return renderItem(it, false); }).join("")
+        : fallbackRows(sec);
       aiEl.innerHTML =
         '<div class="run__head"><span class="run__spin"></span><span class="run__elapsed">' + esc(phase) + " · " + sec + "s</span></div>" +
-        (rows ? '<ul class="run__feed">' + rows + "</ul>" : "");
+        '<ul class="run__feed">' + rows + "</ul>";
       body.scrollTop = body.scrollHeight;
     }
     render();
