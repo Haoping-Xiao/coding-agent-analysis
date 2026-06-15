@@ -35,10 +35,14 @@
 
   /* ---------- 登录门禁 ---------- */
   var form = $("#chatForm"), text = $("#chatText");
+  var historyLoaded = false;
   function applyMode() {
     if (isAdmin()) {
       form.style.display = "";
-      if (body.querySelector(".login")) { body.innerHTML = HINT_HTML; wireSuggest(); }
+      if (!historyLoaded) {
+        historyLoaded = true;
+        loadHistory().then(function (has) { if (!has) { body.innerHTML = HINT_HTML; wireSuggest(); } });
+      } else if (body.querySelector(".login")) { body.innerHTML = HINT_HTML; wireSuggest(); }
       var t = $("#chatText"); if (t) t.focus();
     } else {
       form.style.display = "none";
@@ -66,13 +70,33 @@
         else { if (err) err.textContent = (o.j && o.j.error) || "登录失败"; }
       }).catch(function () { if (err) err.textContent = "网络错误，请重试"; });
   }
-  function logout() { token = null; try { localStorage.removeItem("admin_token"); } catch (e) {} applyMode(); }
+  function logout() { token = null; historyLoaded = false; try { localStorage.removeItem("admin_token"); } catch (e) {} applyMode(); }
+
+  // 恢复管理员历史对话（进页面时）。返回 Promise<boolean>：是否渲染了历史。
+  function loadHistory() {
+    if (!isAdmin() || !state.online) return Promise.resolve(false);
+    return fetch(API + "/api/history", { headers: authHeaders() })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (j) {
+        var items = (j && j.items) || [];
+        body.innerHTML = "";
+        if (!items.length) return false;
+        items.forEach(function (turn) {
+          addMsg("user", esc(turn.question));
+          var ai = addMsg("ai", "");
+          renderFinal(ai, turn.question, turn.answer, turn.model || "", turn.steps || [], false);
+        });
+        body.scrollTop = body.scrollHeight;
+        return true;
+      })
+      .catch(function () { return false; });
+  }
 
   /* ---------- 消息 ---------- */
   function addMsg(role, html) { var el = document.createElement("div"); el.className = "msg msg--" + role; el.innerHTML = html; body.appendChild(el); body.scrollTop = body.scrollHeight; return el; }
   var TYPING = '<span class="msg__typing"><i></i><i></i><i></i></span>';
 
-  function renderFinal(el, question, answer, model, proc) {
+  function renderFinal(el, question, answer, model, proc, save) {
     el.innerHTML = "";
     if (proc && proc.length) {
       var det = document.createElement("details"); det.className = "run__done";
@@ -80,6 +104,9 @@
       el.appendChild(det);
     }
     var p = document.createElement("div"); p.className = "msg__text"; p.textContent = answer; el.appendChild(p);
+    if (save && isAdmin()) {
+      fetch(API + "/api/history", { method: "POST", headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()), body: JSON.stringify({ question: question, answer: answer, model: model, steps: proc || [] }) }).catch(function () {});
+    }
     var actions = document.createElement("div"); actions.className = "msg__actions";
     var adopt = document.createElement("button"); adopt.className = "msg__adopt"; adopt.textContent = "👍 采纳并加入 FAQ";
     adopt.addEventListener("click", function () {
@@ -108,7 +135,7 @@
         if (!resp.ok) return resp.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.error || ("请求失败 " + resp.status)); });
         return resp.json().then(function (data) {
           if (data && data.mode === "async" && data.agentId && data.runId) return pollRun(aiEl, question, data.agentId, data.runId, !!data.warm);
-          if (data && data.answer) { renderFinal(aiEl, question, data.answer, data.model || ""); state.busy = false; return; }
+          if (data && data.answer) { renderFinal(aiEl, question, data.answer, data.model || "", null, true); state.busy = false; return; }
           throw new Error((data && data.error) || "未知响应");
         });
       }).catch(function (err) { state.busy = false; aiEl.innerHTML = '<span class="msg__warn">出错了：' + esc(err.message) + "</span>"; });
@@ -161,7 +188,7 @@
         .then(function (r) { if (r.status === 401) { throw new Error("登录已失效"); } return r.json(); })
         .then(function (d) {
           ingest(d.events);
-          if (d.status === "finished") { done = true; clearInterval(timer); state.busy = false; renderFinal(aiEl, question, d.answer || "", d.model || "", items); return; }
+          if (d.status === "finished") { done = true; clearInterval(timer); state.busy = false; renderFinal(aiEl, question, d.answer || "", d.model || "", items, true); return; }
           if (d.status === "error" || d.status === "cancelled") { done = true; clearInterval(timer); state.busy = false; aiEl.innerHTML = '<span class="msg__warn">运行' + (d.status === "error" ? "出错" : "被取消") + "了，请重试。</span>"; return; }
           render(); elapsed += 1;
           if (elapsed > 200) { done = true; clearInterval(timer); state.busy = false; aiEl.innerHTML = '<span class="msg__warn">等待超时，请重试。</span>'; return; }
