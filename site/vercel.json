@@ -10,6 +10,18 @@
   },
   "headers": [
     {
+      "source": "/",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, must-revalidate" }
+      ]
+    },
+    {
       "source": "/((?!api).*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
