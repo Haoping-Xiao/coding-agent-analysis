@@ -357,7 +357,7 @@ code { font-family: var(--mono); font-size: .9em; }
 .run__head { display: flex; align-items: center; gap: 9px; }
 .run__elapsed { font-size: .82rem; color: var(--txt-mute); }
 .run__head { display: flex; align-items: center; gap: 9px; }
-.run__feed { list-style: none; margin: 11px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+.run__feed { list-style: none; margin: 11px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .run__step { font-size: .84rem; display: flex; align-items: flex-start; gap: 8px; line-height: 1.45; animation: stepIn .22s ease; }
 .run__step .run__ico { flex: none; width: 16px; height: 16px; display: grid; place-items: center; font-size: .78rem; margin-top: 1px; }
 .run__step .run__txt { overflow: hidden; text-overflow: ellipsis; }

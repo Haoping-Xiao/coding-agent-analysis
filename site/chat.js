@@ -148,7 +148,7 @@
     }
     function render() {
       var sec = Math.round((Date.now() - t0) / 1000);
-      var rows = items.length ? items.slice(-9).map(function (it) { return renderItem(it, false); }).join("") : fallbackRows(sec);
+      var rows = items.length ? items.map(function (it) { return renderItem(it, false); }).join("") : fallbackRows(sec);
       var headTxt = items.length ? esc(phase) : "正在云端基于源码作答";
       aiEl.innerHTML = '<div class="run__head"><span class="run__spin"></span><span class="run__elapsed">' + headTxt + " · " + sec + "s</span></div><ul class=\"run__feed\">" + rows + "</ul>";
       body.scrollTop = body.scrollHeight;
