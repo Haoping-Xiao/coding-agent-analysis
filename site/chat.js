@@ -133,17 +133,26 @@
     return pump();
   }
 
-  // Vercel cloud：轮询 /api/run 直到完成（cloud 跑完通常 30~60s）
+  // Vercel cloud：轮询 /api/run 直到完成，并实时展示 agent 正在做什么（思考 / 工具调用）。
   function pollRun(aiEl, question, agentId, runId) {
     var t0 = Date.now();
-    var tip = $("#chatStatusText");
-    function tick() {
+    var lastSteps = [];
+    function iconFor(k) { return k === "tool" ? "🔧" : "💭"; }
+    function render() {
       var sec = Math.round((Date.now() - t0) / 1000);
-      aiEl.innerHTML = TYPING + '<div class="msg__progress">正在云端阅读源码并思考…（' + sec + 's）</div>';
+      var head = '<div class="run__head">' + TYPING + '<span class="run__elapsed">正在云端阅读源码并思考…（' + sec + 's）</span></div>';
+      var feed = "";
+      if (lastSteps.length) {
+        feed = '<ul class="run__feed">' + lastSteps.map(function (s, i) {
+          var live = i === lastSteps.length - 1 ? " is-live" : "";
+          return '<li class="run__step' + live + '">' + iconFor(s.k) + " " + esc(s.t) + "</li>";
+        }).join("") + "</ul>";
+      }
+      aiEl.innerHTML = head + feed;
       body.scrollTop = body.scrollHeight;
     }
-    tick();
-    var timer = setInterval(tick, 1000);
+    render();
+    var timer = setInterval(render, 1000);
     var elapsed = 0;
     function poll() {
       fetch(API + "/api/run?agentId=" + encodeURIComponent(agentId) + "&runId=" + encodeURIComponent(runId))
@@ -151,13 +160,14 @@
         .then(function (d) {
           if (d.status === "finished") { clearInterval(timer); state.busy = false; renderFinal(aiEl, question, d.answer || "", d.model || ""); return; }
           if (d.status === "error" || d.status === "cancelled") { clearInterval(timer); state.busy = false; aiEl.innerHTML = '<span class="msg__warn">运行' + (d.status === "error" ? "出错" : "被取消") + "了，请重试。</span>"; return; }
+          if (d.steps && d.steps.length) { lastSteps = d.steps; render(); }
           elapsed += 1;
           if (elapsed > 150) { clearInterval(timer); state.busy = false; aiEl.innerHTML = '<span class="msg__warn">等待超时，请重试。</span>'; return; }
           setTimeout(poll, 2500);
         })
         .catch(function () { elapsed += 1; if (elapsed > 150) { clearInterval(timer); state.busy = false; } else setTimeout(poll, 3000); });
     }
-    setTimeout(poll, 2500);
+    setTimeout(poll, 2000);
   }
 
   /* ---------- 表单 / 建议 ---------- */
