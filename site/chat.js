@@ -107,7 +107,7 @@
         if (resp.status === 401) { state.busy = false; logout(); aiEl.innerHTML = '<span class="msg__warn">登录已失效，请重新登录。</span>'; return; }
         if (!resp.ok) return resp.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.error || ("请求失败 " + resp.status)); });
         return resp.json().then(function (data) {
-          if (data && data.mode === "async" && data.agentId && data.runId) return pollRun(aiEl, question, data.agentId, data.runId);
+          if (data && data.mode === "async" && data.agentId && data.runId) return pollRun(aiEl, question, data.agentId, data.runId, !!data.warm);
           if (data && data.answer) { renderFinal(aiEl, question, data.answer, data.model || ""); state.busy = false; return; }
           throw new Error((data && data.error) || "未知响应");
         });
@@ -126,9 +126,13 @@
     return '<li class="run__step ' + cls + '"><span class="run__ico">' + ico + '</span><span class="run__txt">' + esc(it.label || it.name || "") + "</span></li>";
   }
 
-  function pollRun(aiEl, question, agentId, runId) {
-    var t0 = Date.now(), done = false, since = 0, phase = "准备云端沙箱、克隆代码仓", items = [], toolIdx = {};
-    var PHASES = [{ t: "准备云端沙箱", until: 12 }, { t: "克隆源码仓库（首次较慢）", until: 50 }, { t: "在源码里查阅、检索", until: 95 }, { t: "组织通俗易懂的答案", until: 1e9 }];
+  function pollRun(aiEl, question, agentId, runId, warm) {
+    var t0 = Date.now(), done = false, since = 0, items = [], toolIdx = {};
+    var phase = warm ? "连接已就绪的 agent" : "准备云端沙箱、克隆代码仓";
+    // 温 agent（已克隆）只需等它开始读码；冷启动才有「克隆仓库」阶段。
+    var PHASES = warm
+      ? [{ t: "连接已就绪的 agent", until: 8 }, { t: "在源码里查阅、检索", until: 1e9 }]
+      : [{ t: "准备云端沙箱", until: 12 }, { t: "克隆源码仓库（首次较慢）", until: 50 }, { t: "在源码里查阅、检索", until: 95 }, { t: "组织通俗易懂的答案", until: 1e9 }];
     function ingest(events) {
       (events || []).forEach(function (ev) {
         if (ev.id > since) since = ev.id;

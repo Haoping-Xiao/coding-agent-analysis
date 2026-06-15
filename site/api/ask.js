@@ -6,13 +6,14 @@ export const config = { maxDuration: 60 };
 
 const WARM_KEY = "warm_agent_id";
 
-// 取得「单例温 agent」：优先 resume 已存在的（沙箱已克隆代码，快）；没有或失效则新建并记下。
+// 取得「单例温 agent」：优先 resume 已存在的（沙箱已克隆代码，快，warm=true）；
+// 没有或失效则新建并记下（需要克隆，warm=false）。
 async function getWarmAgent() {
   const existing = await getState(WARM_KEY);
   if (existing) {
     try {
       const a = await Agent.resume(existing, { apiKey: process.env.CURSOR_API_KEY });
-      return a;
+      return { agent: a, warm: true };
     } catch (_) { /* 失效则下面重建 */ }
   }
   const a = await Agent.create({
@@ -21,7 +22,7 @@ async function getWarmAgent() {
     cloud: { repos: REPOS },
   });
   await setState(WARM_KEY, a.agentId);
-  return a;
+  return { agent: a, warm: false };
 }
 
 // 后台消费 run.stream()，把状态/思考/工具调用写进 run_events 供前端实时展示。
@@ -53,10 +54,10 @@ export default async function handler(req, res) {
 
   try {
     await ensureSchema();
-    const agent = await getWarmAgent();
+    const { agent, warm } = await getWarmAgent();
     const run = await agent.send(buildPrompt(question));
     waitUntil(consumeStream(run, run.id));
-    res.status(200).json({ mode: "async", agentId: agent.agentId, runId: run.id });
+    res.status(200).json({ mode: "async", agentId: agent.agentId, runId: run.id, warm: warm });
   } catch (e) {
     const msg = String(e && e.message || e);
     // 单例 agent 正忙（上一次还没跑完）
