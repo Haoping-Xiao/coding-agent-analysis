@@ -13,11 +13,23 @@
       .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>")
       .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   }
+  // 轻量语法高亮（作用于已转义的代码文本）：注释/字符串/数字/关键字/函数名。覆盖 TS/JS/Rust/bash。
+  var HL_RE = /(\/\*[\s\S]*?\*\/|\/\/[^\n]*)|(`[^`]*`|"[^"]*"|'[^']*')|(\b\d+(?:\.\d+)?\b)|(\b(?:const|let|var|function|fn|async|await|return|if|else|for|while|do|switch|case|break|continue|new|class|import|from|export|default|type|interface|enum|struct|impl|trait|pub|mut|match|yield|throw|try|catch|finally|in|of|as|use|true|false|null|None|Some|Ok|Err|undefined|void|self|this)\b)|([A-Za-z_$][\w$]*(?=\s*\())/g;
+  function highlightCode(code) {
+    return code.replace(HL_RE, function (m, com, str, num, kw, fn) {
+      if (com != null) return '<span class="hl-com">' + com + "</span>";
+      if (str != null) return '<span class="hl-str">' + str + "</span>";
+      if (num != null) return '<span class="hl-num">' + num + "</span>";
+      if (kw != null) return '<span class="hl-kw">' + kw + "</span>";
+      if (fn != null) return '<span class="hl-fn">' + fn + "</span>";
+      return m;
+    });
+  }
   function mdToHtml(src) {
     var text = esc(src == null ? "" : src);
     var blocks = [];
     text = text.replace(/```[\w-]*\n?([\s\S]*?)```/g, function (_, code) {
-      blocks.push('<pre class="md-pre"><code>' + code.replace(/\n$/, "") + "</code></pre>");
+      blocks.push('<pre class="md-pre"><code>' + highlightCode(code.replace(/\n$/, "")) + "</code></pre>");
       return "\u0000B" + (blocks.length - 1) + "\u0000";
     });
     var lines = text.split("\n"), out = [], i = 0;

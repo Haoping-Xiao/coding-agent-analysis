@@ -358,6 +358,11 @@ code { font-family: var(--mono); font-size: .9em; }
 .md code { background: var(--panel-2); padding: 1px 5px; border-radius: 5px; font-family: var(--mono); font-size: .86em; }
 .md pre.md-pre { background: #05070d; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 8px 0; }
 .md pre.md-pre code { background: none; padding: 0; font-size: .82rem; color: #c6d0e6; }
+.md .hl-com { color: #5f6a85; font-style: italic; }
+.md .hl-str { color: #46e0c0; }
+.md .hl-num { color: #ffcf6e; }
+.md .hl-kw { color: #b48cff; }
+.md .hl-fn { color: #6ea8ff; }
 .md ul.md-ul, .md ol.md-ol { margin: 6px 0; padding-left: 20px; }
 .md li { margin: 3px 0; }
 .md h4.md-h, .md h5.md-h, .md h6.md-h { margin: 11px 0 6px; font-size: 1rem; line-height: 1.35; }
