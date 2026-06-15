@@ -18,6 +18,7 @@ export function isAdmin(req) {
   var t = String(h).replace(/^Bearer\s+/i, "").trim();
   return Boolean(t) && t === adminToken();
 }
+export function adminName() { return ADMIN_USER; }
 
 let _db;
 export function db() {

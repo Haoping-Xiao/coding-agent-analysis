@@ -263,11 +263,19 @@
         '<span class="faq-badges">' + (it.upvotes ? '<span class="faq-up">👍 ' + it.upvotes + "</span>" : "") + '<span class="faq-cc">💬 ' + (it.comment_count || 0) + "</span></span>" +
         "</summary><div class=\"faq-ans md\">" + mdToHtml(it.answer) + "</div>" + (it.model ? '<div class="faq-meta">来源模型：' + esc(it.model) + "</div>" : "") +
         '<div class="faq-comments"><div class="cmt-head">评论（帮助优化这条问答）</div><div class="cmt-list"><p class="cmt-empty">加载中…</p></div>' +
-        '<form class="cmt-form"><input class="cmt-name" placeholder="昵称（可选）" maxlength="40" />' +
-        '<div class="cmt-row"><input class="cmt-input" placeholder="留个评论 / 建议…" maxlength="2000" /><button type="submit" class="cmt-send">发送</button></div></form>' +
+        '<form class="cmt-form"><div class="cmt-row"><input class="cmt-input" placeholder="留个评论 / 建议…" maxlength="2000" /><button type="submit" class="cmt-send">发送</button></div></form>' +
         "</div></details>";
     }).join("");
     wireFaq();
+  }
+  // 访客随机昵称（生成一次、存本地，保持一致）。管理员评论的昵称由服务端用用户名覆盖。
+  function guestName() {
+    try { var n = localStorage.getItem("guest_name"); if (n) return n; } catch (e) {}
+    var adj = ["好奇", "热心", "钻研", "路过", "认真", "爱学", "求知", "摸鱼"][Math.floor(Math.random() * 8)];
+    var noun = ["读者", "开发者", "同学", "访客", "工程师", "调包侠"][Math.floor(Math.random() * 6)];
+    var name = adj + "的" + noun + Math.floor(Math.random() * 90 + 10);
+    try { localStorage.setItem("guest_name", name); } catch (e) {}
+    return name;
   }
   function cmtRow(c) {
     return '<div class="cmt"><span class="cmt-author">' + esc(c.author || "匿名") + '</span><span class="cmt-time">' + esc((c.created_at || "").slice(0, 16)) + '</span><div class="cmt-body">' + esc(c.body) + "</div></div>";
@@ -291,10 +299,10 @@
       maybeLoad();
       form.addEventListener("submit", function (e) {
         e.preventDefault();
-        var nameEl = form.querySelector(".cmt-name"), inEl = form.querySelector(".cmt-input"), btn = form.querySelector(".cmt-send");
+        var inEl = form.querySelector(".cmt-input"), btn = form.querySelector(".cmt-send");
         var body = inEl.value.trim(); if (!body) return;
         btn.disabled = true;
-        fetch(API + "/api/comments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ faqId: id, author: nameEl.value.trim(), body: body }) })
+        fetch(API + "/api/comments", { method: "POST", headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()), body: JSON.stringify({ faqId: id, author: guestName(), body: body }) })
           .then(function (r) { return r.json(); })
           .then(function (j) {
             btn.disabled = false;
