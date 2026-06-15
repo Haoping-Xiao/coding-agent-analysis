@@ -259,8 +259,55 @@
   function renderFaq(items) {
     if (!items || !items.length) { faqList.innerHTML = '<p class="faq-empty">还没有问答。管理员问一个、采纳后就会出现在这里。</p>'; return; }
     faqList.innerHTML = items.map(function (it, i) {
-      return '<details class="faq-item"' + (i === 0 ? " open" : "") + "><summary>" + esc(it.question) + (it.upvotes ? '<span class="faq-up">👍 ' + it.upvotes + "</span>" : "") + '</summary><div class="faq-ans md">' + mdToHtml(it.answer) + "</div>" + (it.model ? '<div class="faq-meta">来源模型：' + esc(it.model) + "</div>" : "") + "</details>";
+      return '<details class="faq-item" data-id="' + it.id + '"' + (i === 0 ? " open" : "") + "><summary>" + esc(it.question) +
+        '<span class="faq-badges">' + (it.upvotes ? '<span class="faq-up">👍 ' + it.upvotes + "</span>" : "") + '<span class="faq-cc">💬 ' + (it.comment_count || 0) + "</span></span>" +
+        "</summary><div class=\"faq-ans md\">" + mdToHtml(it.answer) + "</div>" + (it.model ? '<div class="faq-meta">来源模型：' + esc(it.model) + "</div>" : "") +
+        '<div class="faq-comments"><div class="cmt-head">评论（帮助优化这条问答）</div><div class="cmt-list"><p class="cmt-empty">加载中…</p></div>' +
+        '<form class="cmt-form"><input class="cmt-name" placeholder="昵称（可选）" maxlength="40" />' +
+        '<div class="cmt-row"><input class="cmt-input" placeholder="留个评论 / 建议…" maxlength="2000" /><button type="submit" class="cmt-send">发送</button></div></form>' +
+        "</div></details>";
     }).join("");
+    wireFaq();
+  }
+  function cmtRow(c) {
+    return '<div class="cmt"><span class="cmt-author">' + esc(c.author || "匿名") + '</span><span class="cmt-time">' + esc((c.created_at || "").slice(0, 16)) + '</span><div class="cmt-body">' + esc(c.body) + "</div></div>";
+  }
+  function loadComments(faqId, listEl) {
+    fetch(API + "/api/comments?faqId=" + encodeURIComponent(faqId))
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var its = (j && j.items) || [];
+        listEl.innerHTML = its.length ? its.map(cmtRow).join("") : '<p class="cmt-empty">还没有评论，来留第一条 👇</p>';
+      })
+      .catch(function () { listEl.innerHTML = '<p class="cmt-empty">评论加载失败。</p>'; });
+  }
+  function wireFaq() {
+    $$("#faqList .faq-item").forEach(function (d) {
+      var id = d.getAttribute("data-id");
+      var listEl = d.querySelector(".cmt-list");
+      var form = d.querySelector(".cmt-form");
+      function maybeLoad() { if (d.open && !d.dataset.cl) { d.dataset.cl = "1"; loadComments(id, listEl); } }
+      d.addEventListener("toggle", maybeLoad);
+      maybeLoad();
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var nameEl = form.querySelector(".cmt-name"), inEl = form.querySelector(".cmt-input"), btn = form.querySelector(".cmt-send");
+        var body = inEl.value.trim(); if (!body) return;
+        btn.disabled = true;
+        fetch(API + "/api/comments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ faqId: id, author: nameEl.value.trim(), body: body }) })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            btn.disabled = false;
+            if (j && j.ok) {
+              var empty = listEl.querySelector(".cmt-empty"); if (empty) listEl.innerHTML = "";
+              listEl.insertAdjacentHTML("beforeend", cmtRow(j.comment));
+              inEl.value = "";
+              var cc = d.querySelector(".faq-cc"); if (cc) cc.textContent = "💬 " + (listEl.querySelectorAll(".cmt").length);
+            }
+          })
+          .catch(function () { btn.disabled = false; });
+      });
+    });
   }
   function loadFaq() {
     var fromApi = state.online ? fetch(API + "/api/faq").then(function (r) { return r.json(); }).then(function (j) { return j.items; }) : Promise.reject();

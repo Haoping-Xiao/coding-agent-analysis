@@ -4,9 +4,9 @@ export default async function handler(req, res) {
   try {
     await ensureSchema();
     if (req.method === "GET") {
-      // 浏览 FAQ 对所有访客开放
+      // 浏览 FAQ 对所有访客开放（附评论数）
       const r = await db().execute(
-        "SELECT id, question, answer, model, upvotes, created_at FROM faq WHERE status = 'published' ORDER BY upvotes DESC, id DESC LIMIT 200"
+        "SELECT id, question, answer, model, upvotes, created_at, (SELECT COUNT(*) FROM faq_comments c WHERE c.faq_id = faq.id) AS comment_count FROM faq WHERE status = 'published' ORDER BY upvotes DESC, id DESC LIMIT 200"
       );
       return res.status(200).json({ items: r.rows });
     }

@@ -65,6 +65,14 @@ export async function ensureSchema() {
       steps TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS faq_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      faq_id INTEGER NOT NULL,
+      author TEXT,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_faq_comments_faq ON faq_comments(faq_id, id);
   `);
 }
 
