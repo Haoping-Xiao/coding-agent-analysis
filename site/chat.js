@@ -162,12 +162,12 @@
           if (d.status === "error" || d.status === "cancelled") { clearInterval(timer); state.busy = false; aiEl.innerHTML = '<span class="msg__warn">运行' + (d.status === "error" ? "出错" : "被取消") + "了，请重试。</span>"; return; }
           if (d.steps && d.steps.length) { lastSteps = d.steps; render(); }
           elapsed += 1;
-          if (elapsed > 150) { clearInterval(timer); state.busy = false; aiEl.innerHTML = '<span class="msg__warn">等待超时，请重试。</span>'; return; }
-          setTimeout(poll, 2500);
+          if (elapsed > 200) { clearInterval(timer); state.busy = false; aiEl.innerHTML = '<span class="msg__warn">等待超时，请重试。</span>'; return; }
+          setTimeout(poll, 1800);
         })
-        .catch(function () { elapsed += 1; if (elapsed > 150) { clearInterval(timer); state.busy = false; } else setTimeout(poll, 3000); });
+        .catch(function () { elapsed += 1; if (elapsed > 200) { clearInterval(timer); state.busy = false; } else setTimeout(poll, 2000); });
     }
-    setTimeout(poll, 2000);
+    setTimeout(poll, 1500);
   }
 
   /* ---------- 表单 / 建议 ---------- */
