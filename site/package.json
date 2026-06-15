@@ -4,6 +4,7 @@
   "type": "module",
   "dependencies": {
     "@cursor/sdk": "^1.0.18",
-    "@libsql/client": "^0.15.0"
+    "@libsql/client": "^0.15.0",
+    "@vercel/functions": "^3.7.1"
   }
 }
