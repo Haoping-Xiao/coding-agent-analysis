@@ -29,19 +29,20 @@ export async function ensureSchema() {
 export const MODEL_ID = process.env.CURSOR_MODEL || "auto";
 
 // Cursor cloud sandbox 要 clone 的仓库（已连接到团队的 vendor 源码 fork）。
-// gemini-cli 暂未 fork/连接，如需覆盖请在 GitHub fork 后连接到 Cursor 团队再加入此列表。
+// 这些 fork 由 scripts/sync-forks.sh 在部署前同步到各自上游最新。
 export const REPOS = [
   { url: "https://github.com/Haoping-Xiao/codex", startingRef: "main" },
   { url: "https://github.com/Haoping-Xiao/opencode", startingRef: "dev" },
   { url: "https://github.com/Haoping-Xiao/kimi-code", startingRef: "main" },
   { url: "https://github.com/Haoping-Xiao/claude-code-sourcemap", startingRef: "main" },
+  { url: "https://github.com/Haoping-Xiao/gemini-cli", startingRef: "main" },
 ];
 
 export function buildPrompt(question) {
   return [
     "你是一个面向【编程小白 / 刚入门的 AI agent 开发者】的讲解助手。",
     "当前 workspace 里 clone 了几个开源 coding agent 的源码仓库（各自一个目录）：",
-    "codex、opencode、kimi-code、claude-code-sourcemap。先用文件工具（list_dir/read_file/grep 或终端）浏览，再据此回答。",
+    "codex、opencode、kimi-code、claude-code-sourcemap、gemini-cli。先用文件工具（list_dir/read_file/grep 或终端）浏览，再据此回答。",
     "请只通过阅读这些源码来回答，不要凭空假设，也不要修改任何文件。",
     "",
     "回答要求：",
