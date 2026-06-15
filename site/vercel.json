@@ -2,9 +2,15 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "trailingSlash": false,
+  "functions": {
+    "api/ask.js": { "maxDuration": 60 },
+    "api/run.js": { "maxDuration": 30 },
+    "api/faq.js": { "maxDuration": 15 },
+    "api/health.js": { "maxDuration": 15 }
+  },
   "headers": [
     {
-      "source": "/(.*)",
+      "source": "/((?!api).*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
