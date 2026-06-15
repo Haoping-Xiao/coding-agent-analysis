@@ -21,7 +21,17 @@ if [ "${SKIP_SYNC:-0}" != "1" ]; then
   "$ROOT/scripts/sync-forks.sh"
 fi
 
-# 2) 部署到 Vercel 生产
+# 2) 预热单例 cloud agent（克隆好仓库，存 warm_agent_id 到 Turso）
+if [ "${SKIP_WARM:-0}" != "1" ]; then
+  if [ -n "${CURSOR_API_KEY:-}" ] && [ -n "${TURSO_DATABASE_URL:-}" ]; then
+    echo "[deploy] 预热 cloud agent…"
+    node "$ROOT/server/warm-agent.mjs" || echo "[deploy] 预热失败（可忽略，首个提问会自动新建）"
+  else
+    echo "[deploy] 跳过预热（缺 CURSOR_API_KEY / TURSO_DATABASE_URL）"
+  fi
+fi
+
+# 3) 部署到 Vercel 生产
 cd "$ROOT/site"
 URL="$(vercel deploy --prod --yes --scope "$SCOPE" "${TOKEN_ARG[@]}" | tail -1)"
 echo "[deploy] 新生产部署：$URL"

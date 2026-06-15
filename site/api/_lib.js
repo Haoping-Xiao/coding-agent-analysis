@@ -1,5 +1,23 @@
-// Vercel serverless 共享代码：Turso 客户端、cloud 仓库配置、问答 prompt。
+// Vercel serverless 共享代码：Turso 客户端、cloud 仓库配置、问答 prompt、管理员鉴权、温 agent 状态。
 import { createClient } from "@libsql/client";
+import crypto from "node:crypto";
+
+// ===== 管理员鉴权（账号/密码默认 hopkinx，可用环境变量覆盖）=====
+const ADMIN_USER = process.env.ADMIN_USERNAME || "hopkinx";
+const ADMIN_PASS = process.env.ADMIN_PASSWORD || "hopkinx";
+const ADMIN_SECRET = process.env.ADMIN_SECRET || "coding-agents-101-secret";
+
+export function adminToken() {
+  return crypto.createHmac("sha256", ADMIN_SECRET).update("admin:" + ADMIN_USER).digest("hex");
+}
+export function checkLogin(username, password) {
+  return username === ADMIN_USER && password === ADMIN_PASS;
+}
+export function isAdmin(req) {
+  var h = (req.headers && (req.headers.authorization || req.headers.Authorization)) || "";
+  var t = String(h).replace(/^Bearer\s+/i, "").trim();
+  return Boolean(t) && t === adminToken();
+}
 
 let _db;
 export function db() {
@@ -34,7 +52,23 @@ export async function ensureSchema() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_run_events_run ON run_events(run_id, id);
+    CREATE TABLE IF NOT EXISTS app_state (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
+}
+
+export async function getState(key) {
+  const r = await db().execute({ sql: "SELECT value FROM app_state WHERE key = ?", args: [key] });
+  return r.rows[0] ? r.rows[0].value : null;
+}
+export async function setState(key, value) {
+  await db().execute({
+    sql: "INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')",
+    args: [key, value],
+  });
 }
 
 // 把 run.stream() 的一条事件写进 run_events，供前端轮询展示实时状态。

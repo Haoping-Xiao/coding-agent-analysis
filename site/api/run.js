@@ -1,10 +1,11 @@
 import { Agent } from "@cursor/sdk";
-import { getEventsSince } from "./_lib.js";
+import { getEventsSince, isAdmin } from "./_lib.js";
 
 export const config = { maxDuration: 20 };
 
 // 轮询：返回运行状态 + 自 since 之后的新事件（实时进度）；完成时附最终答案。
 export default async function handler(req, res) {
+  if (!isAdmin(req)) return res.status(401).json({ error: "仅管理员可访问" });
   const agentId = req.query.agentId;
   const runId = req.query.runId;
   const since = req.query.since || 0;

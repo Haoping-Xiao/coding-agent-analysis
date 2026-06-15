@@ -1,15 +1,17 @@
-import { db, ensureSchema, readBody } from "./_lib.js";
+import { db, ensureSchema, readBody, isAdmin } from "./_lib.js";
 
 export default async function handler(req, res) {
   try {
     await ensureSchema();
     if (req.method === "GET") {
+      // 浏览 FAQ 对所有访客开放
       const r = await db().execute(
         "SELECT id, question, answer, model, upvotes, created_at FROM faq WHERE status = 'published' ORDER BY upvotes DESC, id DESC LIMIT 200"
       );
       return res.status(200).json({ items: r.rows });
     }
     if (req.method === "POST") {
+      if (!isAdmin(req)) return res.status(401).json({ error: "仅管理员可写入 FAQ" });
       const { question, answer, model } = readBody(req);
       if (!String(question || "").trim() || !String(answer || "").trim()) {
         return res.status(400).json({ error: "question 和 answer 不能为空" });
