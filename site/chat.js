@@ -256,6 +256,26 @@
 
   /* ---------- FAQ ---------- */
   var faqList = $("#faqList");
+  // 管理员删除评论：在稳定的 #faqList 容器上做一次性事件委托（不随重渲染失效）。
+  faqList.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest(".cmt-del") : null;
+    if (!btn || !isAdmin()) return;
+    var item = btn.closest(".faq-item");
+    var listEl = item ? item.querySelector(".cmt-list") : null;
+    btn.disabled = true;
+    fetch(API + "/api/comments?id=" + encodeURIComponent(btn.getAttribute("data-id")), { method: "DELETE", headers: authHeaders() })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.ok) {
+          var row = btn.closest(".cmt"); if (row) row.remove();
+          if (listEl && item) {
+            var cc = item.querySelector(".faq-cc"); if (cc) cc.textContent = "💬 " + listEl.querySelectorAll(".cmt").length;
+            if (!listEl.querySelector(".cmt")) listEl.innerHTML = '<p class="cmt-empty">还没有评论，来留第一条 👇</p>';
+          }
+        } else { btn.disabled = false; }
+      })
+      .catch(function () { btn.disabled = false; });
+  });
   function renderFaq(items) {
     if (!items || !items.length) { faqList.innerHTML = '<p class="faq-empty">还没有问答。管理员问一个、采纳后就会出现在这里。</p>'; return; }
     faqList.innerHTML = items.map(function (it, i) {
@@ -298,22 +318,6 @@
       function maybeLoad() { if (d.open && !d.dataset.cl) { d.dataset.cl = "1"; loadComments(id, listEl); } }
       d.addEventListener("toggle", maybeLoad);
       maybeLoad();
-      // 管理员删除评论（事件委托）
-      listEl.addEventListener("click", function (e) {
-        var btn = e.target && e.target.closest ? e.target.closest(".cmt-del") : null;
-        if (!btn || !isAdmin()) return;
-        btn.disabled = true;
-        fetch(API + "/api/comments?id=" + encodeURIComponent(btn.getAttribute("data-id")), { method: "DELETE", headers: authHeaders() })
-          .then(function (r) { return r.json(); })
-          .then(function (j) {
-            if (j && j.ok) {
-              var row = btn.closest(".cmt"); if (row) row.remove();
-              var cc = d.querySelector(".faq-cc"); if (cc) cc.textContent = "💬 " + listEl.querySelectorAll(".cmt").length;
-              if (!listEl.querySelector(".cmt")) listEl.innerHTML = '<p class="cmt-empty">还没有评论，来留第一条 👇</p>';
-            } else { btn.disabled = false; }
-          })
-          .catch(function () { btn.disabled = false; });
-      });
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         var inEl = form.querySelector(".cmt-input"), btn = form.querySelector(".cmt-send");
