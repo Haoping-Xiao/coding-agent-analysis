@@ -298,7 +298,7 @@
     return name;
   }
   function cmtRow(c) {
-    var del = isAdmin() ? '<button class="cmt-del" data-id="' + c.id + '" title="删除评论">✕</button>' : "";
+    var del = isAdmin() ? '<button class="cmt-del" data-id="' + c.id + '" title="删除评论">✕ 删除</button>' : "";
     return '<div class="cmt" data-id="' + c.id + '"><span class="cmt-author">' + esc(c.author || "匿名") + '</span><span class="cmt-time">' + esc((c.created_at || "").slice(0, 16)) + "</span>" + del + '<div class="cmt-body">' + esc(c.body) + "</div></div>";
   }
   function loadComments(faqId, listEl) {
