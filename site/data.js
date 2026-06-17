@@ -88,72 +88,72 @@ window.SITE_DATA = {
     }
   },
 
-  /* 各家招牌设计 */
+  /* 各家招牌设计（每家一个主标签；MCP / compaction / steer / 事件总线等共性能力不单列） */
   vendors: {
     codex: {
       name: "Codex",
       who: "OpenAI · Rust 核心 + 多前端",
-      tag: "把「控制」和「输出」拆成两条队列",
-      summary: "Rust 写的核心引擎，外面套一层类型化 JSON-RPC 的 app-server，TUI / VS Code / SDK 都是它的客户端。",
+      tag: "编排与执行拆平面",
+      summary: "App Server 对外是 JSON-RPC 的 Thread/Turn/Item；真正跑 shell/PTY/MCP stdio 走独立 exec-server，不是 CLI 里直接 spawn。",
       tricks: [
-        ["SQ / EQ 双队列", "所有用户意图（消息、打断、审批答复、改设置）排进一条 Submission 队列；所有进展从另一条 Event 队列流出。UI 可以「发了就不管」，审批只是队列里的又一个 Op，顺序天然确定。"],
-        ["app-server 类型化门面", "对外的方法（turn/start、item/started…）由 Rust 类型生成，外部集成方拿到稳定、带版本的契约，却不必 fork agent 逻辑。一套核心驱动所有前端。"],
-        ["先沙箱、失败再升级", "工具编排器：先审批 → 进沙箱执行 → 若是沙箱（而非用户）挡住了，用已有授权脱沙箱重试。默认安全，又不会因双重弹窗烦死人。"],
-        ["一个二进制，多重人格", "同一个可执行文件靠 argv[0] 把自己再调用成沙箱助手 / apply-patch 等。子进程不用单独安装，策略由同一份签名二进制强制执行。"]
+        ["App Server 一等公民", "turn/start、item/started、turn/steer 由 Rust 类型生成 TS/JSON Schema。VS Code、SDK、TUI 都是客户端；过载时 -32001 背压。"],
+        ["exec-server 执行平面", "编排层不直接 spawn：本地 JSON-RPC exec-server 管 PTY；远程用 Noise relay 桥接虚拟 JSON-RPC 流；MCP stdio 也走这条链。"],
+        ["arg0 单二进制多角色", "同一可执行文件靠 argv[0] 再调自己为 sandbox、apply_patch、fs helper，并注入 PATH symlink。策略由签名二进制强制执行。"],
+        ["声明式沙箱 + execpolicy", "permissions profile 路由到 Seatbelt/bwrap/Windows token；命令级还有 Starlark prefix_rule 的 allow/prompt/forbidden 引擎。"]
       ],
-      evidence: "<code>codex-rs/core/src/session/</code> · <code>codex-rs/app-server/</code> · <code>tools/orchestrator.rs</code> · <code>arg0/src/lib.rs</code>"
+      evidence: "<code>codex-rs/app-server/</code> · <code>codex-rs/exec-server/</code> · <code>codex-rs/arg0/src/lib.rs</code> · <code>codex-rs/execpolicy/</code>"
     },
     claude: {
       name: "Claude Code",
       who: "Anthropic · TypeScript",
-      tag: "把 prompt cache 当作架构，而非小优化",
-      summary: "一个 while(true) 的 query 循环，但在「省 token、保速度、稳错误」上做到极致。",
+      tag: "Hooks 控制面 + Swarm 文件邮箱",
+      summary: "query 循环之上叠了可编程 Hooks；多 teammate 用文件系统 inbox 做 IPC，不是简单再 spawn 一个子进程。",
       tricks: [
-        ["压缩阶梯", "上下文吃紧时按代价从低到高处理：先压缩超大工具输出，再裁剪/折叠，最后才动用摘要 autocompact。让最近的文件内容活得更久，模型少犯错。"],
-        ["缓存友好是设计红线", "工具清单顺序固定、旧工具结果用占位符冻结、子 agent 复用父级前缀、改 UI 前先 clone——全是为了命中 prompt cache。长会话因此又快又便宜。"],
-        ["边流边执行 + 安全并行", "只读工具在模型还在吐字时就能开跑，写操作串行；但结果仍按调用顺序回灌。Grep/Read 密集的一轮快很多。"],
-        ["先扣下错误再恢复", "prompt 太长、输出超限等错误先不抛给上层，先尝试折叠/压缩/截断重试；流式中坏掉的 thinking 块打上墓碑。客户端不会因一个可恢复的溢出就崩掉会话。"]
+        ["Hooks exit-code 语义", "25+ 生命周期点；exit 0 放行、2 阻断并喂给模型、其他只展示。同框架挂 shell、HTTP（含 SSRF guard）、嵌套 LLM、异步长任务。"],
+        ["Swarm 文件邮箱 IPC", "teammateMailbox 在 ~/.claude/teams/.../inboxes/ 用 lockfile 写 JSON；permissionSync 把 worker 权限请求路由回 leader UI。"],
+        ["MCP defer_loading", "MCP/shouldDefer 工具标 defer_loading，由 ToolSearchTool 按需发现；可按 context window 百分比自动开启，避免工具定义撑爆上下文。"],
+        ["cache-aware fork", "子 agent 克隆 readFileState 保持与 parent 前缀一致以复用 prompt cache，同时 no-op setAppState、收紧权限提示。"]
       ],
-      evidence: "<code>restored-src/src/query.ts</code> · <code>services/compact/*</code> · <code>services/tools/StreamingToolExecutor.ts</code>"
+      evidence: "<code>restored-src/src/utils/hooksConfigManager.ts</code> · <code>teammateMailbox.ts</code> · <code>toolSearch.ts</code> · <code>forkedAgent.ts</code>"
     },
     gemini: {
       name: "Gemini CLI",
       who: "Google · TypeScript monorepo",
-      tag: "事件总线解耦 + 给历史「兜底修复」",
-      summary: "core 引擎与 Ink/React 界面彻底分离；同一套核心还能跑 SDK、A2A server、VS Code 插件。",
+      tag: "五级 TOML Policy Engine",
+      summary: "allow/deny/ask 不是事后弹窗：在 scheduler Validating 阶段由分层规则引擎裁决，再进入执行。",
       tricks: [
-        ["Scheduler + MessageBus", "核心用事件驱动的调度器执行工具与审批，完全不认识前端。终端、SDK、IDE 订阅同一条总线。这是「agent 循环」与「展示层」分离的典范。"],
-        ["四层记忆 + 按需加载", "不是一个大 system prompt：仓库级 GEMINI.md、私有 MEMORY.md、全局配置，再加上「工具碰到某目录才注入该子目录规则」的 JIT 上下文。既精简又相关。"],
-        ["hardenHistory 兜底", "长会话被截断/压缩后，对话结构可能不再合法（角色不交替、tool 调用没配对）。它用哨兵文本修复这些不变量，避免下一次 API 调用直接 400。"],
-        ["改文件前打 git checkpoint", "可恢复的工具调用前，先快照 git 状态并序列化历史，支持 /restore 式回滚。把文件系统状态和对话状态绑在一起。"]
+        ["五级 tier 优先级", "Admin > User > Workspace > Extension > Default；extension 启动时可 addRule/addChecker 注入策略与 checker。"],
+        ["stableStringify 防绕过", "tool args 做确定性序列化（排序 key、处理 circular ref）再匹配 argsPattern 正则，避免参数形态绕过。"],
+        ["shell heuristics 联动", "PolicyEngine 结合 SandboxManager 的危险/安全命令启发式，在规则之上动态升降级决策。"],
+        ["shadow git checkpoint（辅）", "可恢复工具调用前在隔离 shadow repo 快照 commitHash + clientHistory，/restore 同时回滚文件与对话状态。"]
       ],
-      evidence: "<code>packages/core/src/scheduler/</code> · <code>confirmation-bus/message-bus.ts</code> · <code>utils/historyHardening.ts</code> · <code>utils/checkpointUtils.ts</code>"
+      evidence: "<code>packages/core/src/policy/policy-engine.ts</code> · <code>policy/stable-stringify.ts</code> · <code>scheduler/scheduler.ts</code> · <code>services/gitService.ts</code>"
     },
     opencode: {
       name: "OpenCode",
       who: "开源 · TypeScript / Bun",
-      tag: "无头 server + 一堆瘦客户端",
-      summary: "核心是一个常驻 HTTP server，TUI / 网页 / 桌面 / Slack / IDE 都只是订阅 SSE、调 REST 的客户端。",
+      tag: "Location 作用域 + inbox promote",
+      summary: "runner/catalog/LSP 按工作目录缓存整套 Effect layer；用户输入先进 durable inbox，再 steer/queue promote 成可见消息。",
       tricks: [
-        ["无头 server + 生成式 SDK", "一个长驻服务，所有界面都是客户端。TUI 被明令禁止 import 后端模块，只能走 SDK——倒逼 API 完整。同一套 agent 运行时服务终端、浏览器、IDE 协议与自动化。"],
-        ["按请求切项目实例", "服务器启动时不绑定任何项目；每个请求用 x-opencode-directory 头选工作区。于是一个 server 能同时服务多个仓库（远程 attach、局域网 mDNS）。"],
-        ["schema 优先的 LLM 层", "单一的 LLMRequest / LLMEvent 流跨 OpenAI / Anthropic / Gemini / Bedrock…provider 的怪癖塞进适配器。换模型是改配置，不是重写逻辑。"],
-        ["模式即权限 profile", "build 与 plan 的差别仅在合并后的权限规则集（plan 禁止 edit，除计划文件）。一套工具、一个循环，切模式只是换策略。"]
+        ["Location 缓存整套运行时", "每个 Location.Ref 独立 layer 树：Catalog、ToolRegistry、SessionRunner、BuiltInTools、LSP。同 server 多项目并行。"],
+        ["session_input 准入队列", "输入 durable 入库后才投影为 user message；steer 在 provider turn 安全边界抢占，queue 等 turn 结束 FIFO 处理。"],
+        ["Context Epoch 版本化", "AGENTS.md、skill 等特权 system context 独立 reconcile 与 lazy replace；compaction 完成后替换 epoch snapshot。"],
+        ["write 后 LSP diagnostic 回灌", "write/edit/apply_patch 后 touchFile → diagnostics 注入 tool output，模型可据 LSP 错误自我修正。"]
       ],
-      evidence: "<code>packages/opencode/src/server/</code> · <code>cli/cmd/serve.ts</code> · <code>packages/llm/</code> · <code>agent/agent.ts</code>"
+      evidence: "<code>packages/core/src/location-layer.ts</code> · <code>session/input.ts</code> · <code>specs/v2/session.md</code> · <code>packages/opencode/src/tool/write.ts</code>"
     },
     kimi: {
       name: "Kimi Code",
       who: "Moonshot · TypeScript monorepo",
-      tag: "引擎与产品分两层 + 全程可 replay",
-      summary: "Moonshot 自研（非 Gemini CLI fork），由旧的 kimi-cli 演进。kosong 管模型、loop 管循环、agent-core 管会话与策略。",
+      tag: "双层 compaction（Full + Micro）",
+      summary: "Full 走 LLM 摘要；Micro 在 prompt cache miss 后只清空旧 tool body，不调模型。",
       tricks: [
-        ["双层循环：engine vs product", "runTurn 只懂「调模型、可能跑工具、重复」；审批、压缩、steer、目标这些 Kimi 特性全挂在 TurnFlow 的 hook 上。核心循环可单独测试与替换。"],
-        ["流式与持久转录分离", "token 增量实时推 UI，但只有「完整块」才被记录用于下一次模型调用。UI 快，上下文稳且可重放，半截内容不污染缓存。"],
-        ["智能并行工具", "独立工具（读两个文件）并发；声明了重叠文件/shell 访问的工具自动串行。提速又不会在同一路径上打架。"],
-        ["wire log + 确定性恢复", "几乎所有状态变更都追加成 AgentRecord；恢复会话就是 replay 这些记录，而非各种特判。既崩溃安全，又能驱动 apps/vis 调试器。"]
+        ["Micro 清 tool body", "cache miss 超 1h 且上下文占用 >50% 时，旧 tool 结果替换为 [Old tool result content cleared]，保留近期消息不动。"],
+        ["canSplitAfter 保护并行 tool", "compaction 切分点检查 open tool exchange 与 parallel tool results，避免摘要后留下孤儿 tool_result。"],
+        ["think-only 当失败模式", "kosong 检测只有 thinking 无 text/tool_calls → APIEmptyResponseError；Full compaction 像截断溢出一样 shrink prefix 重试。"],
+        ["资源冲突感知并行", "ToolScheduler + ToolAccesses：声明文件/shell 访问路径重叠则串行，无冲突则并发，不盲目全开也不全串行。"]
       ],
-      evidence: "<code>packages/agent-core/src/loop/</code> · <code>agent/turn/index.ts</code> · <code>packages/kosong/</code> · <code>agent/records/index.ts</code>"
+      evidence: "<code>packages/agent-core/src/agent/compaction/micro.ts</code> · <code>compaction/strategy.ts</code> · <code>packages/kosong/src/generate.ts</code> · <code>loop/tool-scheduler.ts</code>"
     }
   },
 
@@ -164,7 +164,7 @@ window.SITE_DATA = {
     ["多端架构", "JSON-RPC app-server", "CLI 为主 + SDK", "事件总线，核心/UI 解耦", "无头 HTTP server + 多客户端", "进程内 RPC（预留 daemon）"],
     ["权限审批", "AskForApproval + 审批缓存", "规则 + 模式 + bash 分类器", "策略引擎 + MessageBus 确认", "allow/deny/ask + shell 词法", "PermissionManager 策略链"],
     ["上下文压缩", "rollout 持久化", "压缩阶梯 + 缓存友好", "hardenHistory 修复 + 压缩", "DB 持久 + 运行器", "微压缩 + 缓存感知"],
-    ["招牌绝活", "先沙箱失败再脱沙箱重试", "prompt cache 当架构", "git checkpoint 回滚", "按请求切项目实例", "wire log 确定性恢复"],
+    ["招牌绝活", "编排/执行拆平面", "Hooks + 文件邮箱 Swarm", "五级 TOML Policy", "Location + Context Epoch", "Micro compaction"],
     ["沙箱/隔离", "Seatbelt/bwrap/RestrictedToken", "bash 沙箱 + 路径约束", "可选 sandbox 启动", "权限边界 + external_dir", "KAOS 执行抽象（本地/SSH）"]
   ]
 };
