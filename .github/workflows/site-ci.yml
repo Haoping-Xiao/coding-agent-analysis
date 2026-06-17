@@ -1,0 +1,41 @@
+name: Site CI
+
+on:
+  pull_request:
+    paths:
+      - "site/**"
+      - "server/**"
+      - "scripts/**"
+      - ".github/workflows/site-ci.yml"
+      - ".github/workflows/deploy-site.yml"
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "server/**"
+      - "scripts/**"
+      - ".github/workflows/site-ci.yml"
+      - ".github/workflows/deploy-site.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            site/package-lock.json
+
+      - name: Validate site
+        run: ./scripts/validate-site.sh
