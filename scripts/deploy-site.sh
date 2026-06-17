@@ -7,7 +7,8 @@
 #   VERCEL_TOKEN   Vercel 访问令牌（CI 里用；本地已 vercel login 可不填）
 #   VERCEL_SCOPE   团队 scope（默认 haoping-xiaos-projects）
 #   SITE_ALIAS     好记的生产域名（默认 coding-agents-101.vercel.app）
-#   SKIP_SYNC=1    跳过 fork 同步，只部署
+#   FORK_SYNC_TOKEN  同步 vendor fork 用的 PAT（可选；不配则 SKIP_SYNC=1）
+#   SKIP_SYNC=1      跳过 fork 同步，只部署
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -15,6 +16,13 @@ SCOPE="${VERCEL_SCOPE:-haoping-xiaos-projects}"
 ALIAS="${SITE_ALIAS:-coding-agents-101.vercel.app}"
 TOKEN_ARG=()
 [ -n "${VERCEL_TOKEN:-}" ] && TOKEN_ARG=(--token "$VERCEL_TOKEN")
+
+# gh repo sync 需要对这些 fork 有写权限；CI 里用 FORK_SYNC_TOKEN（PAT），本地用 gh auth login
+if [ -n "${FORK_SYNC_TOKEN:-}" ]; then
+  export GH_TOKEN="$FORK_SYNC_TOKEN"
+elif [ -n "${GITHUB_TOKEN:-}" ] && [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+  export GH_TOKEN="$GITHUB_TOKEN"
+fi
 
 # 1) 同步 fork（线上回答基于这些 fork 的最新代码）
 if [ "${SKIP_SYNC:-0}" != "1" ]; then
@@ -25,6 +33,7 @@ fi
 if [ "${SKIP_WARM:-0}" != "1" ]; then
   if [ -n "${CURSOR_API_KEY:-}" ] && [ -n "${TURSO_DATABASE_URL:-}" ]; then
     echo "[deploy] 预热 cloud agent…"
+    (cd "$ROOT/server" && [ -d node_modules ] || npm ci --omit=dev)
     node "$ROOT/server/warm-agent.mjs" || echo "[deploy] 预热失败（可忽略，首个提问会自动新建）"
   else
     echo "[deploy] 跳过预热（缺 CURSOR_API_KEY / TURSO_DATABASE_URL）"

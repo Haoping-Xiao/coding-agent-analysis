@@ -1,0 +1,73 @@
+name: Deploy Site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "server/**"
+      - "scripts/deploy-site.sh"
+      - "scripts/sync-forks.sh"
+      - "scripts/validate-site.sh"
+      - ".github/workflows/deploy-site.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-site-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            site/package-lock.json
+      - name: Validate site
+        env:
+          CI_SKIP_VENDORS: "1"
+        run: ./scripts/validate-site.sh
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Install server deps (warm-agent)
+        run: npm ci
+        working-directory: server
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_SCOPE: ${{ vars.VERCEL_SCOPE || 'haoping-xiaos-projects' }}
+          SITE_ALIAS: ${{ vars.SITE_ALIAS || 'coding-agents-101.vercel.app' }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          FORK_SYNC_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+          SKIP_SYNC: ${{ secrets.FORK_SYNC_TOKEN != '' && '0' || '1' }}
+        run: ./scripts/deploy-site.sh
