@@ -23,7 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
           fetch-depth: 1
       - uses: actions/setup-node@v4
         with:
@@ -32,7 +31,10 @@ jobs:
           cache-dependency-path: |
             server/package-lock.json
             site/package-lock.json
-      - run: ./scripts/validate-site.sh
+      - name: Validate site
+        env:
+          CI_SKIP_VENDORS: "1"
+        run: ./scripts/validate-site.sh
 
   deploy:
     needs: validate

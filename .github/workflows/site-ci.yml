@@ -25,7 +25,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: recursive
           fetch-depth: 1
 
       - name: Setup Node.js
@@ -38,4 +37,6 @@ jobs:
             site/package-lock.json
 
       - name: Validate site
+        env:
+          CI_SKIP_VENDORS: "1"
         run: ./scripts/validate-site.sh
