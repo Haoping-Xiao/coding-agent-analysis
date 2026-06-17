@@ -2,7 +2,9 @@ name: Deploy Site
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - cursor/coding-agent-explainer-site-2eb4
     paths:
       - "site/**"
       - "server/**"
