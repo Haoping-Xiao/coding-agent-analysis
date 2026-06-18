@@ -60,6 +60,16 @@ jobs:
         run: npm ci
         working-directory: server
 
+      - name: Check deploy secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::缺少 GitHub Secret: VERCEL_TOKEN"
+            echo "在 Vercel 创建 Token 后，添加到仓库 Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
       - name: Deploy to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

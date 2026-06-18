@@ -17,6 +17,13 @@ ALIAS="${SITE_ALIAS:-coding-agents-101.vercel.app}"
 TOKEN_ARG=()
 [ -n "${VERCEL_TOKEN:-}" ] && TOKEN_ARG=(--token "$VERCEL_TOKEN")
 
+if [ "${GITHUB_ACTIONS:-}" = "true" ] && [ -z "${VERCEL_TOKEN:-}" ]; then
+  echo "[deploy] 错误：GitHub Actions 部署必须在仓库 Secrets 配置 VERCEL_TOKEN" >&2
+  echo "[deploy] 取得：vercel.com → Account Settings → Tokens → Create" >&2
+  echo "[deploy] 配置：GitHub 仓库 → Settings → Secrets and variables → Actions → VERCEL_TOKEN" >&2
+  exit 1
+fi
+
 # gh repo sync 需要对这些 fork 有写权限；CI 里用 FORK_SYNC_TOKEN（PAT），本地用 gh auth login
 if [ -n "${FORK_SYNC_TOKEN:-}" ]; then
   export GH_TOKEN="$FORK_SYNC_TOKEN"
