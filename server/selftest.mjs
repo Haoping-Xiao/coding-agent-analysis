@@ -3,7 +3,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { addFaq, listFaq, countFaq } from "./db.mjs";
+import { addFaq, listFaq, countFaq, deleteFaq } from "./db.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -22,6 +22,8 @@ const after = await countFaq();
 ok("countFaq 增加 1", after === before + 1, `(${before}->${after})`);
 const items = await listFaq({ limit: 5 });
 ok("listFaq 含刚插入的问题", items.some((i) => i.question === "自检问题？"));
+await deleteFaq(row.id);
+ok("deleteFaq 清理自检数据", !(await listFaq({ limit: 5 })).some((i) => i.id === row.id));
 
 console.log("== 代码仓（local 运行时 agent 的 cwd） ==");
 ok("vendors/ 存在", existsSync(join(REPO_ROOT, "vendors")));

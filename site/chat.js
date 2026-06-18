@@ -62,7 +62,7 @@
   var dot = $("#chatStatusDot"), statusText = $("#chatStatusText");
   function setStatus() {
     dot.className = "chat__dot " + (state.online ? (isAdmin() ? "is-live" : "is-demo") : "is-off");
-    statusText.textContent = !state.online ? "后端离线 · 仅可浏览 FAQ"
+    statusText.textContent = !state.online ? "后端离线"
       : (isAdmin() ? "管理员 · 可提问" : "访客 · 只读（管理员可提问）");
   }
   function probe() {
@@ -339,8 +339,10 @@
     });
   }
   function loadFaq() {
-    var fromApi = state.online ? fetch(API + "/api/faq").then(function (r) { return r.json(); }).then(function (j) { return j.items; }) : Promise.reject();
-    fromApi.catch(function () { return fetch("faq.json").then(function (r) { return r.json(); }).then(function (j) { return j.items; }); }).then(renderFaq).catch(function () { faqList.innerHTML = '<p class="faq-empty">问答加载失败。</p>'; });
+    fetch(API + "/api/faq")
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (j) { renderFaq(j.items); })
+      .catch(function () { faqList.innerHTML = '<p class="faq-empty">问答加载失败，请检查后端连接。</p>'; });
   }
 
   /* ---------- 启动 ---------- */

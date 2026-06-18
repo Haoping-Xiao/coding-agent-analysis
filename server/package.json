@@ -7,7 +7,6 @@
   "main": "index.mjs",
   "scripts": {
     "start": "node index.mjs",
-    "export-faq": "node export-faq.mjs",
     "selftest": "node selftest.mjs"
   },
   "dependencies": {

@@ -76,4 +76,12 @@ export async function countFaq() {
   return Number(res.rows[0].n);
 }
 
+export async function deleteFaq(id) {
+  await init();
+  const fid = Number(id);
+  if (!fid) throw new Error("需要有效的 FAQ id");
+  await db.execute({ sql: "DELETE FROM faq_comments WHERE faq_id = ?", args: [fid] });
+  await db.execute({ sql: "DELETE FROM faq WHERE id = ?", args: [fid] });
+}
+
 export default db;
