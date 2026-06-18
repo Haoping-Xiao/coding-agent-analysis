@@ -1,14 +1,46 @@
 {
-  "generated_at": "2026-06-14T16:57:38.345Z",
-  "count": 1,
+  "generated_at": "2026-06-18T01:57:02.335Z",
+  "count": 5,
   "items": [
     {
-      "id": 3,
-      "question": "各家怎么管上下文不爆？",
-      "answer": "**结论：五家都是「先估 token、快到顶就压、尽量保留最近几轮」的多层防线，只是侧重点不同。**\n\n**上下文窗口**（模型一次能读多少字）快满时，各家都会先数 token：OpenCode（`overflow.ts`）、Kimi Code（`strategy.ts` 默认 85%）、Gemini CLI（`chatCompressionService.ts` 默认 50%）、Codex（`model_auto_compact_token_limit`）、Claude Code（`autoCompact.ts` 留约 1.3 万 token 缓冲）都会在阈值触发动作。\n\n**大压缩（Compaction）** 是主力：把老对话交给模型写摘要，只留最近几轮原文。Codex（`compact.rs`）、Kimi（`full.ts`）、OpenCode（`compaction.ts`）、Claude（`autoCompact.ts`）、Gemini（`chatCompressionService.ts`）都走这条路；真爆了还会再压一次（如 OpenCode 的 overflow 重试、Kimi 的 `context.overflow`）。\n\n**小压缩（Micro-compact）** 专门啃工具输出这类大块头：Claude Code 和 Kimi Code 会把旧的读文件/跑命令结果替换成「内容已清除」占位符（`microCompact.ts`、`micro.ts`），OpenCode 还会 **prune** 旧工具输出（`compaction.ts`），Gemini 则截断老工具结果并落盘（`truncateHistoryToBudget`），有时再用 LLM 摘要（`summarizer.ts`）。\n\n**额外手段**：Claude 超大工具结果存磁盘而非硬截（`toolResultStorage.ts`）；Gemini 对项目文件做分级压缩（`contextCompressionService.ts`）；Codex 支持远程压缩和 `new_context_window` 开新窗口（`compact_remote.rs`）。整体像整理行李箱：先扔过期杂物，再压缩旧衣服，最新要用的留在外面。",
-      "model": "default",
+      "id": 12,
+      "question": "。并行 fork 多个分身时，如果塞真实工具结果，每个分身前缀会不一样，prompt cache 就蹭不上了；占位符必须全员相同.\n\n你确定吗？",
+      "answer": "**部分确定，但上一版说法说得太绝对了——源码明确写的是设计目标，不是做了对照实验。**\n\n`forkSubagent.ts` 里写得很清楚：占位符要「all fork children 全员相同」，目的是让多个 fork 子 agent 的 API 请求前缀尽量 byte-identical，**只有最后那段任务指令文本不同**（第 91–105 行）。所以「占位符必须相同」这点，源码是直接声明的，不是我猜的。\n\n但「如果塞真实工具结果，每个分身前缀就一定不一样」——源码**没有**这么写，这是我根据机制推出来的，要分情况：fork 发生时父 agent 那条 assistant 消息里的 tool_use 还没结果（`runAgent.ts` 的 `filterIncompleteToolCalls` 就是为此滤掉半截消息），所以此刻本来就没有真实结果可塞，占位符首先是凑齐 API 要求的 tool_use/tool_result 配对。并行 spawn 多个 fork 时，若真等每个 Agent 调用返回再写入各自的 agent id、状态等，那些 tool_result 内容大概率各不相同，前缀确实会分叉；但如果其他工具的结果恰好一样，理论上前缀仍可能一致——只是代码选择用固定占位符来**保证**一致，而不是赌真实结果碰巧相同。\n\n更准确的说法：占位符不是为了「真实结果必然不同」，而是为了**主动把 tool_result 段钉死成同一段文字**，把唯一允许不同的部分留给最后的 `buildChildMessage(directive)`，从而最大化并行 fork 之间的 cache 共享。我上次把推断当成了铁律，这里更正一下。",
+      "model": null,
       "upvotes": 0,
-      "created_at": "2026-06-14 16:49:22"
+      "created_at": "2026-06-18 01:54:54"
+    },
+    {
+      "id": 11,
+      "question": "claude code 的 defer loading 和 tool search tool 是咋做的",
+      "answer": "**结论：Claude Code 用「延迟加载」省上下文——很多工具（尤其 MCP 插件工具）一开始只告诉模型名字，不塞完整参数说明；模型真要用时，再调一个叫 ToolSearch 的专用工具去「查目录、取说明书」。**\n\n`defer_loading` 就是发给 Anthropic API 的标记：在 `restored-src/src/utils/api.ts` 和 `restored-src/src/services/api/claude.ts` 里，开启 tool search 后，MCP 工具或标了 `shouldDefer` 的工具会带 `defer_loading: true`，只占很少 token；哪些该延迟由 `restored-src/src/tools/ToolSearchTool/prompt.ts` 的 `isDeferredTool` 决定（MCP 默认延迟，`alwaysLoad` 的例外不延迟）。开关在 `restored-src/src/utils/toolSearch.ts`：读环境变量 `ENABLE_TOOL_SEARCH`，分三种模式——全开延迟（`tst`）、工具太多才自动延迟（`tst-auto`）、全量加载（`standard`）。`ToolSearchTool` 本体在 `restored-src/src/tools/ToolSearchTool/ToolSearchTool.ts`：模型传入查询（如 `select:Read,Edit` 精确点名，或 `slack send` 关键词搜索），它从延迟工具池里匹配，返回 `tool_reference` 块，相当于告诉 API「把这几个工具的完整 schema 加载进来」；之后模型才能正常调用。打个比方：一开始只给菜单菜名，ToolSearch 是服务员——你说要什么菜，它再把详细配方端上来。",
+      "model": null,
+      "upvotes": 0,
+      "created_at": "2026-06-18 01:40:49"
+    },
+    {
+      "id": 7,
+      "question": "但是codex 的 turn 就是 一个while 循环。：问模型 → 收回复 → 执行工具啊。 理论上就是多轮了",
+      "answer": "**结论：你说得对——常见的「问模型 → 收回复 → 跑工具」多轮循环，确实在 `run_turn` 里的 `while` 就搞定了，不必靠多个 Turn 拼出来。**\n\n源码里 `run_turn`（`codex-rs/core/src/session/turn.rs`）自己就写着：模型要调工具就执行，再把结果喂回模型；只有模型纯回复、不再要工具时，这一圈才算结束。所以多数情况下，你发一个问题 → 起一个 `Task`（`RegularTask`）→ 里面只跑**一次** `run_turn`，多轮工具调用全在这一个 Turn 里转完。\n\n那为啥还要 `Task`？因为它管的是**更外一层的事**，不只是模型循环：一次用户提交（`Op::UserTurn`）对应一整单活；你在 AI 跑着的时候又插话，可能同一 Task 里再开一轮 `run_turn`（`tasks/regular.rs` 里 `has_pending_input` 判断）；还有压缩、审查、跑 shell 等不同 `Task` 类型，各自有独立的开始/结束和取消逻辑（`tasks/mod.rs`）。`protocol_v1.md` 把「一轮 Turn 的输出喂给下一轮 Turn」说得太抽象，容易让人以为模型循环靠多个 Turn 串起来——**实现上其实是 Turn 内部循环 + Task 管整单活的边界。**",
+      "model": null,
+      "upvotes": 0,
+      "created_at": "2026-06-15 09:38:43"
+    },
+    {
+      "id": 6,
+      "question": "所以：三家都有消息通道，但 gemini-cli 把审批、规则、工具执行绑成一条专用线；另外两个项目的通道更像全局通知，审批是另起一套。\n\n可以举个极简的代码案例吗",
+      "answer": "**结论：三家都能“发消息”，但 gemini-cli 把判规则、问用户、继续执行写在同一条线上；opencode 和 codex 是工具/核心先卡住，再通过另一套机制通知界面。**\n\n下面用极简伪代码对照（逻辑来自各仓库真实写法，只删掉无关细节）：\n\n**gemini-cli：一条线办完**\n```ts\n// Scheduler 要执行工具 → 发到 MessageBus\nawait messageBus.publish({ type: 'tool-confirmation-request', toolCall, correlationId });\n\n// MessageBus 里：先过 PolicyEngine，再决定直接回还是问你\nconst { decision } = await policyEngine.check(toolCall);\nif (decision === 'allow') emit('tool-confirmation-response', { confirmed: true });\nelse if (decision === 'ask_user') emit('tool-confirmation-request'); // UI 订阅这条线\n```\n（见 `confirmation-bus/message-bus.ts`、`scheduler/scheduler.ts`）\n\n**opencode：工具自己敲门，公告栏另发通知**\n```ts\n// read 工具：执行前先 assert，和 EventV2 无关\nyield* permission.assert({ action: 'read', resources: ['README.md'], sessionID });\n\n// PermissionV2 内部：需要问人时，才往 EventV2 广播\nif (effect === 'ask') yield* events.publish('permission.v2.asked', request);\nawait deferred.await(); // 卡住，等 UI 调 permission.reply()\n```\n（见 `tool/read.ts`、`permission.ts`）\n\n**codex：核心往事件队列丢审批，界面单独接**\n```rust\n// 核心判定需要批准 → 往 EQ 推一种事件\nEventMsg::ExecApprovalRequest(ExecApprovalRequestEvent { command, cwd, .. })\n\n// TUI 收到后弹窗，用户选择再通过 SQ 回传\nfn on_exec_approval_request(&mut self, ev: ExecApprovalRequestEvent) {\n    self.handle_exec_approval_now(ev); // 弹窗等你点\n}\n```\n（见 `docs/protocol_v1.md`、`tui/src/chatwidget/tool_requests.rs`）\n\n**打个比方**：gemini-cli 像收银台一条流水线（扫码→判价→问你→出货）；opencode 像店员先拦你“能不能拿”，再广播喊经理；codex 像后厨出单口贴纸条，前台看到再回话。",
+      "model": null,
+      "upvotes": 0,
+      "created_at": "2026-06-15 08:54:55"
+    },
+    {
+      "id": 5,
+      "question": "gemini的message bus 和schedular有特殊之处吗，opencode 和 codex 也有啊",
+      "answer": "**结论：有特殊之处，但别把它们都当成同一种“广播站”——gemini-cli 这套是专管“工具要不要做、怎么做”的流水线，opencode 和 codex 的消息通道职责更宽、更偏通知。**\n\nopencode 的 `EventV2`（`packages/core/src/event.ts`）像带存档的公告栏，记录会话里各种变化；codex 的 EQ（`codex-rs/docs/protocol_v1.md`）像核心引擎和界面之间的传话窗口，把模型输出、审批请求等事件推给 UI。gemini-cli 的 `MessageBus` 虽然底层也是事件机制，但它和 `PolicyEngine` 焊在一起（`packages/core/src/confirmation-bus/message-bus.ts`），消息类型几乎全是工具审批相关（`tool-confirmation-request` 等，见 `confirmation-bus/types.ts`），发出去时会先自动判规则，能放行就直接回，不能才问你。旁边的 `Scheduler`（`packages/core/src/scheduler/scheduler.ts`）则是工具执行的“工头”，负责排队、等批准、执行、汇报，并通过同一条线把状态推给界面。\n\n所以：**三家都有消息通道，但 gemini-cli 把审批、规则、工具执行绑成一条专用线；另外两个项目的通道更像全局通知，审批是另起一套。**",
+      "model": null,
+      "upvotes": 0,
+      "created_at": "2026-06-15 08:08:09"
     }
   ]
 }
